@@ -12,6 +12,7 @@ from sklearn.model_selection import KFold
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from torch.utils.data import Subset
 from torch_geometric.data import DataLoader, Data
+from util import str2float, formatOutput, meanOfArr
 
 
 def kfold_mlp(data, args):
@@ -87,6 +88,9 @@ def kfold_mlp(data, args):
                     'Something goes wrong with 10-fold cross-validation'
 
                 # Build the data loader
+
+                # --------------------------- feat: GPU 占用率低 使用 num_worker 看看能不能加速 不行---------------------------
+
                 training_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True)
                 validation_loader = DataLoader(val_set, batch_size=args.batch_size, shuffle=False)
                 test_loader = DataLoader(test_set, batch_size=args.batch_size, shuffle=False)
@@ -135,7 +139,12 @@ def kfold_gcn(edge_index, edge_attr, num_samples, args):
     result_df = pd.DataFrame([])
     test_result_acc = []
     test_result_loss = []
-
+    # ACC, RECALL, PRE, SC, F1_SCORE
+    result_acc = []
+    result_recall = []
+    result_pre = []
+    result_sc = []
+    result_f1_score = []
     for i, (train_idx, test_idx) in enumerate(kf.split(indices)):
         # Ready to read further learned features extracted by MLP on different folds
         fold_path = os.path.join(args.data_dir, 'Further_Learned_Features', 'fold_%d' % (i + 1))
@@ -190,6 +199,7 @@ def kfold_gcn(edge_index, edge_attr, num_samples, args):
             'Something wrong with the cross-validation!'
 
         # Batch-size is meaningless
+        # feat: 不行 添加 num_worker 看看能不能提高GPU占用率 num_workers的经验设置值是自己电脑/服务器的CPU核心数  i7-11700核心为 8
         loader = DataLoader([data], batch_size=1)
 
         # Model training
@@ -197,12 +207,18 @@ def kfold_gcn(edge_index, edge_attr, num_samples, args):
         # Restore best model for test set
         checkpoint = torch.load(os.path.join(work_path, '{}.pth'.format(best_model)))
         model.load_state_dict(checkpoint['net'])
-        test_acc, test_loss, test_out = test_gcn(loader, model, args)
+        test_acc, test_loss, test_out, ACC, RECALL, PRE, SC, F1_SCORE = test_gcn(loader, model, args)
 
         # Store the resluts
         result_df['fold_%d_' % (i + 1)] = test_out
         test_result_acc.append(test_acc)
         test_result_loss.append(test_loss)
+        result_acc.append(ACC)
+        result_recall.append(RECALL)
+        result_pre.append(PRE)
+        result_sc.append(SC)
+        result_f1_score.append(F1_SCORE)
+
         acc_val, loss_val, _ = test_gcn(loader, model, args, test=False)
         print('GCN {:0>2d} fold test set results, loss = {:.6f}, accuracy = {:.6f}'.format(i + 1, test_loss, test_acc))
         print('GCN {:0>2d} fold val set results, loss = {:.6f}, accuracy = {:.6f}'.format(i + 1, loss_val, acc_val))
@@ -224,15 +240,19 @@ def kfold_gcn(edge_index, edge_attr, num_samples, args):
     result_df.to_csv(os.path.join(result_path,
                                   'GCN_pool_%.3f_seed_%d_%s.csv' % (args.pooling_ratio, args.seed, formatted_time)),
                      index=False, header=True)
-    # ------------------------------------------ feat: 保存每次的平均 ACC ------------------------------------------
-    file = "result.txt"
+    # ------------------------------------------ feat: 保存每次的平均指标 ------------------------------------------
+    file = "index.txt"
     # 打开文件
     f = open(file, 'a', encoding='utf-8')
-    this_args = '\n' + str(args)
-    f.write(this_args)
-    acc_mean = sum(test_result_acc) / len(test_result_acc)
-    f.write('  Mean Accuracy: ' + str(acc_mean))
+    # 统一保留8位小数对齐 且转为 str 格式
+    acc_mean = formatOutput(meanOfArr(str2float(result_acc)))
+    recall_mean = formatOutput(meanOfArr(str2float(result_recall)))
+    pre_mean = formatOutput(meanOfArr(str2float(result_pre)))
+    sc_mean = formatOutput(meanOfArr(str2float(result_sc)))
+    f1_score_mean = formatOutput(meanOfArr(str2float(result_f1_score)))
+    f.write(
+        'Mean Accuracy: ' + acc_mean + ' Mean Recall: ' + recall_mean + ' Mean Precision: ' + pre_mean +
+        ' Mean Specificity: ' + sc_mean + ' Mean F1 Score: ' + f1_score_mean)
     # 关闭文件
     f.close()
     print('Mean Accuracy: %f' % (sum(test_result_acc) / len(test_result_acc)))
-

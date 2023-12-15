@@ -39,7 +39,6 @@ def graph_pooling(args):
         data = data.to(args.device)
         downsample += gp(data).cpu().detach().numpy().tolist()
         label += data.y.cpu().detach().numpy().tolist()
-        print(downsample, 'downsample')
     downsample_df = pd.DataFrame(downsample)
     # store the label, in case of data samples shuffle
     downsample_df['label'] = label
@@ -200,9 +199,12 @@ def extract(data, args, least_epochs=100):
 
         model = MultilayerPerceptron(model_args).to(model_args.device)
         # load model
-        model.load_state_dict(checkpoint['net'])
+        # fix: 尝试修复报错
+
+        model.load_state_dict(checkpoint['net'], strict=False)
 
         model.eval()
+
         feature_matrix = []
         label = []
         correct = 0
@@ -247,14 +249,19 @@ def test_gcn(loader, model, args, test=True):
     loss_test = 0.0
     output = []
     criterion = nn.BCEWithLogitsLoss()
+    TP = 0
+    FP = 0
+    TN = 0
+    FN = 0
+    ACC = 0.0
+    PRE = 0.0
+    RECALL = 0.0
+    SC = 0.0
+    F1_SCORE = 0.0
     for data in loader:
         data = data.to(args.device)
         out, _ = model(data.x, data.edge_index, data.edge_attr)
         output += out.cpu().detach().numpy().tolist()
-        TP = 0
-        FP = 0
-        TN = 0
-        FN = 0
         if test:
             pred = (out[data.test_mask] > 0).long()  # Predicted tensor
             length = data.test_mask.sum().item()
@@ -264,11 +271,11 @@ def test_gcn(loader, model, args, test=True):
             # TP(True Positive，真阳性)：样本的真实类别是正类，并且模型预测的结果也是正类。
             # FP(False Positive，假阳性)：样本的真实类别是负类，但是模型将其预测成为正类。
             # TN(True Negative，真阴性)：样本的真实类别是负类，并且模型将其预测成为负类。
-            # FN(False Negative，假阴性)：样本的真实类别是正类，但是模型将其预测成为负类。
+            # FN(False Negative，假阴性)：样本的真实类别是正类，但是模型将其预测成为负类。c
             # ACC = TP + TN / TP + TN + FP + FN
-            # PRE = TP /TP + FP
+            # Precision: PRE = TP /TP + FP
             # RECALL = TP / TP + FN
-            # SC = TN / TN + FP
+            # Specificity: SC = TN / TN + FP
             # F1 SCORE = 2 * PRE * RECALL / PRE + RECALL
             pre_list = pred.cpu().numpy().tolist()
             true_list = data.y[data.test_mask].cpu().numpy().tolist()
@@ -286,20 +293,25 @@ def test_gcn(loader, model, args, test=True):
             RECALL = TP / (TP + FN)
             SC = TN / (TN + FP)
             F1_SCORE = 2 * PRE * RECALL / (PRE + RECALL)
+            # 统一保留16位小数对齐 且转为 str 格式
+            ACC = "{:.16f}".format(ACC)
+            RECALL = "{:.16f}".format(RECALL)
+            PRE = "{:.16f}".format(PRE)
+            SC = "{:.16f}".format(SC)
+            F1_SCORE = "{:.16f}".format(F1_SCORE)
             file = "index.txt"
             # 打开文件
             f = open(file, 'a', encoding='utf-8')
-            this_args = ' ACC: ' + str(ACC) + ' RECALL: ' + str(RECALL) + ' PRE: ' + str(PRE) + ' SC: ' + str(
-                SC) + ' F1_SCORE: ' + str(F1_SCORE) + '\n'
-            f.write(this_args)
+            idx = 'ACC: ' + ACC + ' RECALL: ' + RECALL + ' PRE: ' + PRE + ' SC: ' + SC + ' F1_SCORE: ' + F1_SCORE + '\n'
+            f.write(idx)
             # -------------------------------------------------------------------------------------------
         else:
             pred = (out[data.val_mask] > 0).long()
             length = data.val_mask.sum().item()
             correct += pred.eq(data.y[data.val_mask]).sum().item()
             loss_test += criterion(out[data.val_mask], data.y[data.val_mask].float()).item()
-
-    return correct / length, loss_test, output
+            return correct / length, loss_test, output
+    return correct / length, loss_test, output, ACC, RECALL, PRE, SC, F1_SCORE
 
 
 def train_gcn(dataloader, model, optimizer, save_path, args):

@@ -1,2 +1,5 @@
 *.txt
 /test.py
+data/
+checkpoints/
+results/

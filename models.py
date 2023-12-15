@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 from torch_geometric.nn import global_mean_pool as gap, global_max_pool as gmp
 from layers import HGPSLPool
-from torch_geometric.nn import GCNConv, APPNP, ClusterGCNConv, ChebConv
+from torch_geometric.nn import GCNConv, APPNP, ClusterGCNConv, ChebConv, GraphSAGE
 
 
 # Model of hierarchical graph pooling
@@ -84,7 +84,8 @@ class GCN(torch.nn.Module):
         # herein, we have employed GCNConv and ClusterGCN
         self.conv1 = GCNConv(self.num_features, self.nhid)
         # self.conv2 = GCNConv(self.nhid, self.nhid)
-        self.conv2 = ClusterGCNConv(self.nhid, 1)
+        print(self.nhid, 'nhid')
+        self.conv2 = GraphSAGE(self.nhid, self.nhid // 2, 3, 1)
 
     def forward(self, x, edge_index, edge_weight):
         x = self.conv1(x, edge_index, edge_weight)
