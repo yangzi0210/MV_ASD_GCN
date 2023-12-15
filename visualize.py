@@ -31,7 +31,7 @@ parser.add_argument('--group', type=str, default='gender', help='Phenotypic attr
 args = parser.parse_args()
 
 
-def draw_cv_roc_curve(cv, out, y, thre=0, title='') -> None:
+def draw_cv_roc_curve(file_name, cv, out, y, thre=0, title='') -> None:
     """
     Draw a Cross Validated ROC Curve.
     Args:
@@ -95,7 +95,7 @@ def draw_cv_roc_curve(cv, out, y, thre=0, title='') -> None:
     disp = ConfusionMatrixDisplay(normalized, display_labels=['Control', 'ASD'])
     disp.plot(ax=ax2, cmap=plt.cm.Blues)
     ax2.set_title('Confusion Matrix')
-    plt.savefig(f'line_chart{datetime.now().strftime("%Y_%m_%d_%H_%M_%S")}.png')
+    plt.savefig(f'./ROC/Roc_Confusion_Matrix_{file_name}.png')
     plt.suptitle(title)
     plt.show()
 
@@ -186,75 +186,75 @@ if __name__ == '__main__':
     # load ground truth
     labels = pd.read_csv(os.path.join(args.data_root, 'phenotypic', 'log.csv'))['label']
     # plot
-    draw_cv_roc_curve(kf, pred, labels, thre=threshold,
+    draw_cv_roc_curve(file_name, kf, pred, labels, thre=threshold,
                       title='pooling ratio = {:.3f}, random seed = {:d}'.
                       format(args.pooling_ratio, args.seed))
 
-
     # visualize node embeddings
-    if args.embedding:
-        # load pre-trained GCN model to output learned embeddings
-        check_path = os.path.join(args.model_root, 'GCN')
-        models = [f for f in os.listdir(check_path)
-                  if f.startswith('fold') and f.endswith('.pth')]
-        assert len(models), \
-            'No trained GCN model found.'
+    # if args.embedding:
+    # load pre-trained GCN model to output learned embeddings
+    check_path = os.path.join(args.model_root, 'GCN')
+    models = [f for f in os.listdir(check_path)
+              if f.startswith('fold') and f.endswith('.pth')]
+    assert len(models), \
+        'No trained GCN model found.'
 
-        # load phenotypic information for grouping
-        logs = pd.read_csv(os.path.join(args.data_root, 'phenotypic', 'log.csv'))
+    # load phenotypic information for grouping
+    logs = pd.read_csv(os.path.join(args.data_root, 'phenotypic', 'log.csv'))
 
-        # assign each node to groups
-        if args.group == 'gender':
-            sex = ['Female', 'Male']
-            tags = np.array([sex[2 - i] for i in logs['SEX'].values])
-        elif args.group == 'site':
-            tags = logs['SITE_ID'].values
-        elif args.group == 'age':
-            # hard coding...
-            sample_ages = []
-            for i in range(logs.shape[0]):
-                if logs['AGE_AT_SCAN'].values[i] <= 12:
-                    sample_ages.append('0 <= age <= 12')
-                elif logs['AGE_AT_SCAN'].values[i] <= 17:
-                    sample_ages.append('13 <= age <= 17')
-                else:
-                    sample_ages.append('18 <= age <= 58')
-            tags = np.array(sample_ages)
-        else:
-            raise AttributeError('No such group available: %s' % args.group)
+    # assign each node to groups
+    if args.group == 'gender':
+        sex = ['Female', 'Male']
+        tags = np.array([sex[2 - i] for i in logs['SEX'].values])
+    elif args.group == 'site':
+        tags = logs['SITE_ID'].values
+    elif args.group == 'age':
+        # hard coding...
+        sample_ages = []
+        for i in range(logs.shape[0]):
+            if logs['AGE_AT_SCAN'].values[i] <= 12:
+                sample_ages.append('0 <= age <= 12')
+            elif logs['AGE_AT_SCAN'].values[i] <= 17:
+                sample_ages.append('13 <= age <= 17')
+            else:
+                sample_ages.append('18 <= age <= 58')
+        tags = np.array(sample_ages)
+    else:
+        raise AttributeError('No such group available: %s' % args.group)
 
-        # find the model with highest test acc from 10 folds
-        test_acc = [float(f.split('_')[3]) for f in models]
-        best_index = np.argmax(test_acc)
-        fold_num = int(models[best_index].split('_')[1])
-        model_file = os.path.join(check_path, models[best_index])
-        checkpoint = torch.load(model_file)
-        # load args
-        model_args = checkpoint['args']
-        # load weights
-        gcn_model = GCN(model_args).to(model_args.device)
-        gcn_model.load_state_dict(checkpoint['net'])
+    # find the model with highest test acc from 10 folds
+    test_acc = [float(f.split('_')[3]) for f in models]
+    best_index = np.argmax(test_acc)
+    fold_num = int(models[best_index].split('_')[1])
+    model_file = os.path.join(check_path, models[best_index])
+    checkpoint = torch.load(model_file)
+    # load args
+    model_args = checkpoint['args']
+    # load weights
+    gcn_model = GCN(model_args).to(model_args.device)
+    gcn_model.load_state_dict(checkpoint['net'])
 
-        # load further learned features on the same fold
-        features = pd.read_csv(os.path.join(args.data_root, 'Further_Learned_Features',
-                                            'fold_%d' % fold_num, 'features.txt'), header=None, sep='\t')
-        # load population graph
-        edge_idx = pd.read_csv(os.path.join(args.data_root, 'population graph', 'ABIDE.adj'), header=None).values
-        edge_attr = pd.read_csv(os.path.join(args.data_root,
-                                             'population graph', 'ABIDE.attr'), header=None).values.reshape(-1)
+    # load further learned features on the same fold
+    features = pd.read_csv(os.path.join(args.data_root, 'Further_Learned_Features',
+                                        'fold_%d' % fold_num, 'features.txt'), header=None, sep='\t')
+    # load population graph
+    edge_idx = pd.read_csv(os.path.join(args.data_root, 'population graph', 'ABIDE.adj'), header=None).values
+    edge_attr = pd.read_csv(os.path.join(args.data_root,
+                                         'population graph', 'ABIDE.attr'), header=None).values.reshape(-1)
 
-        # convert features to embeddings using pre-trained gcn model
-        node_embedding = feature2embedding(gcn_model, features, edge_idx, edge_attr, model_args)
+    # convert features to embeddings using pre-trained gcn model
+    node_embedding = feature2embedding(gcn_model, features, edge_idx, edge_attr, model_args)
 
-        plt.figure(figsize=(15, 6))
-        ax1 = plt.subplot(121)
-        ax2 = plt.subplot(122)
+    plt.figure(figsize=(15, 6))
+    ax1 = plt.subplot(121)
+    ax2 = plt.subplot(122)
 
-        # plot 2D view of features
-        view2D(features, tags, axis=ax1, legend_title=args.group, title='Further Learned Features')
+    # plot 2D view of features
+    view2D(features, tags, axis=ax1, legend_title=args.group, title='Further Learned Features')
 
-        # plot 2D view of embeddings
-        view2D(node_embedding, tags, axis=ax2, legend_title=args.group, title='Node Embeddings')
+    # plot 2D view of embeddings
+    view2D(node_embedding, tags, axis=ax2, legend_title=args.group, title='Node Embeddings')
 
-        plt.suptitle('Features VS Node Embeddings on %s' % args.group)
-        plt.show()
+    plt.suptitle('Features VS Node Embeddings on %s' % args.group)
+    plt.show()
+    plt.savefig(f'./Node Embeddings/Node_Embeddings_{args.group}.png')

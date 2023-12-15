@@ -4,15 +4,15 @@
 ## Requirements
 ```
 
-torch == 1.8.1+cu102
+torch >= 1.8.1+cu102
 
-torch-cluster == 1.5.9
+torch-cluster >= 1.5.9
 
-torch-geometric == 1.7.0
+torch-geometric >= 1.7.0
 
-torch-scatter == 2.0.7
+torch-scatter >= 2.0.7
 
-torch-sparse == 0.6.10
+torch-sparse >= 0.6.10
 
 sklearn
 
