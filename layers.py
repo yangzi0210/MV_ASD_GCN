@@ -1,105 +1,12 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from sparse_softmax import Sparsemax
-from torch.nn import Parameter
 from torch_geometric.data import Data
 from torch_geometric.nn.conv import MessagePassing
-# from torch_geometric.nn.pool.topk_pool import topk, filter_adj 老版本
 from torch_geometric.utils import softmax, dense_to_sparse, add_remaining_self_loops
 from torch_scatter import scatter_add
 from torch_sparse import spspmm, coalesce
-from torch import Tensor
-from typing import Optional, Union, Tuple
-from torch_geometric.utils import scatter, softmax
-
-from torch_geometric.utils.num_nodes import maybe_num_nodes
-
-
-def cumsum(x: Tensor, dim: int = 0) -> Tensor:
-    r"""Returns the cumulative sum of elements of :obj:`x`.
-    In contrast to :meth:`torch.cumsum`, prepends the output with zero.
-
-    Args:
-        x (torch.Tensor): The input tensor.
-        dim (int, optional): The dimension to do the operation over.
-            (default: :obj:`0`)
-
-    Example:
-        >>> x = torch.tensor([2, 4, 1])
-        >>> cumsum(x)
-        tensor([0, 2, 6, 7])
-
-    """
-    size = x.size()[:dim] + (x.size(dim) + 1,) + x.size()[dim + 1:]
-    out = x.new_empty(size)
-
-    out.narrow(dim, 0, 1).zero_()
-    torch.cumsum(x, dim=dim, out=out.narrow(dim, 1, x.size(dim)))
-
-    return out
-
-
-def topk(
-        x: Tensor,
-        ratio: Optional[Union[float, int]],
-        batch: Tensor,
-        min_score: Optional[float] = None,
-        tol: float = 1e-7,
-) -> Tensor:
-    if min_score is not None:
-        # Make sure that we do not drop all nodes in a graph.
-        scores_max = scatter(x, batch, reduce='max')[batch] - tol
-        scores_min = scores_max.clamp(max=min_score)
-
-        perm = (x > scores_min).nonzero().view(-1)
-        return perm
-
-    if ratio is not None:
-        num_nodes = scatter(batch.new_ones(x.size(0)), batch, reduce='sum')
-
-        if ratio >= 1:
-            k = num_nodes.new_full((num_nodes.size(0),), int(ratio))
-        else:
-            k = (float(ratio) * num_nodes.to(x.dtype)).ceil().to(torch.long)
-
-        x, x_perm = torch.sort(x.view(-1), descending=True)
-        batch = batch[x_perm]
-        batch, batch_perm = torch.sort(batch, descending=False, stable=True)
-
-        arange = torch.arange(x.size(0), dtype=torch.long, device=x.device)
-        ptr = cumsum(num_nodes)
-        batched_arange = arange - ptr[batch]
-        mask = batched_arange < k[batch]
-
-        return x_perm[batch_perm[mask]]
-
-
-def filter_adj(
-        edge_index: Tensor,
-        edge_attr: Optional[Tensor],
-        node_index: Tensor,
-        cluster_index: Optional[Tensor] = None,
-        num_nodes: Optional[int] = None,
-) -> Tuple[Tensor, Optional[Tensor]]:
-    num_nodes = maybe_num_nodes(edge_index, num_nodes)
-
-    if cluster_index is None:
-        cluster_index = torch.arange(node_index.size(0),
-                                     device=node_index.device)
-
-    mask = node_index.new_full((num_nodes,), -1)
-    mask[node_index] = cluster_index
-
-    row, col = edge_index[0], edge_index[1]
-    row, col = mask[row], mask[col]
-    mask = (row >= 0) & (col >= 0)
-    row, col = row[mask], col[mask]
-
-    if edge_attr is not None:
-        edge_attr = edge_attr[mask]
-
-    return torch.stack([row, col], dim=0), edge_attr
+from util import cumsum, filter_adj, topk
 
 
 class TwoHopNeighborhood(object):
