@@ -2,14 +2,12 @@
 10-fold cross-validation of MLP and GCN
 """
 import os
-import time
 import torch
 import pandas as pd
 import numpy as np
 from training import train_mlp, test_mlp, train_gcn, test_gcn
-from models import GPModel, MultilayerPerceptron, GCN
+from models import GPModel, MultilayerPerceptron, GCN, TransformerModel
 from sklearn.model_selection import KFold
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from torch.utils.data import Subset
 from torch_geometric.data import DataLoader, Data
 from util import str2float, formatOutput, meanOfArr
@@ -64,7 +62,7 @@ def kfold_mlp(data, args):
 
                 # Make sure the test indices are the same
                 # for every time you run the K fold
-                # it's silly but I must make sure
+                # it's silly, but I must make sure
                 test_log = os.path.join(fold_dir, 'test_indices.txt')
                 if not os.path.exists(test_log):
                     np.savetxt(test_log, test_idx, fmt='%d', delimiter=' ')
@@ -89,7 +87,7 @@ def kfold_mlp(data, args):
 
                 # Build the data loader
 
-                # --------------------------- feat: GPU 占用率低 使用 num_worker 看看能不能加速 不行---------------------------
+                # --------------------------- chores: GPU 占用率低 使用 num_worker 看看能不能加速 不行---------------------------
 
                 training_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True)
                 validation_loader = DataLoader(val_set, batch_size=args.batch_size, shuffle=False)
@@ -119,7 +117,9 @@ def kfold_gcn(edge_index, edge_attr, num_samples, args):
     :param args: args from main.py
     :return:
     """
-    # ------- TODO：修改模型 添加其他指标 F1-score Accuracy Precision Recall/Sensitivity 在其他指标上效果更好 ---------
+
+    # feat: 添加了其他指标的评估
+
     # locally set parameters
     args.num_features = args.nhid // 2  # output feature size of MLP 整数除法
     args.nhid = args.num_features // 2

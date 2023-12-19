@@ -1,8 +1,24 @@
 import torch
-from torch_geometric.utils import scatter, softmax
-from torch_geometric.utils.num_nodes import maybe_num_nodes
 from torch import Tensor
 from typing import Optional, Union, Tuple
+from torch_geometric.utils import scatter, softmax
+from torch_geometric.utils.num_nodes import maybe_num_nodes
+
+
+def str2float(arr):
+    for i in range(len(arr)):
+        arr[i] = float(arr[i])
+    return arr
+
+
+def formatOutput(output):
+    return "{:.8f}".format(output)
+
+
+def meanOfArr(arr):
+    return sum(arr) / len(arr)
+
+
 def cumsum(x: Tensor, dim: int = 0) -> Tensor:
     r"""Returns the cumulative sum of elements of :obj:`x`.
     In contrast to :meth:`torch.cumsum`, prepends the output with zero.
@@ -87,17 +103,3 @@ def filter_adj(
         edge_attr = edge_attr[mask]
 
     return torch.stack([row, col], dim=0), edge_attr
-
-
-def str2float(arr):
-    for i in range(len(arr)):
-        arr[i] = float(arr[i])
-    return arr
-
-
-def formatOutput(output):
-    return "{:.8f}".format(output)
-
-
-def meanOfArr(arr):
-    return sum(arr) / len(arr)

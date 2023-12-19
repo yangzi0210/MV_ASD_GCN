@@ -3,10 +3,12 @@ import torch.nn as nn
 from sparse_softmax import Sparsemax
 from torch_geometric.data import Data
 from torch_geometric.nn.conv import MessagePassing
+from util import cumsum, topk, filter_adj
 from torch_geometric.utils import softmax, dense_to_sparse, add_remaining_self_loops
 from torch_scatter import scatter_add
 from torch_sparse import spspmm, coalesce
-from util import cumsum, filter_adj, topk
+from torch_geometric.utils import scatter, softmax
+
 
 
 class TwoHopNeighborhood(object):

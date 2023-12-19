@@ -9,7 +9,7 @@ import numpy as np
 import shutil
 from torch_geometric.datasets import TUDataset
 from torch_geometric.data import DataLoader
-from models import GPModel, MultilayerPerceptron
+from models import GPModel, MultilayerPerceptron, TransformerModel
 
 import torch.nn as nn
 
@@ -39,6 +39,7 @@ def graph_pooling(args):
         data = data.to(args.device)
         downsample += gp(data).cpu().detach().numpy().tolist()
         label += data.y.cpu().detach().numpy().tolist()
+        print(downsample, 'downsample')
     downsample_df = pd.DataFrame(downsample)
     # store the label, in case of data samples shuffle
     downsample_df['label'] = label

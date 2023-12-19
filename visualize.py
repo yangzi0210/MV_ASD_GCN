@@ -1,6 +1,4 @@
 import os
-from datetime import datetime
-
 import torch
 import argparse
 import matplotlib.pyplot as plt
@@ -12,8 +10,7 @@ from numpy import interp
 import pandas as pd
 from sklearn.datasets import make_blobs
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, auc, average_precision_score, confusion_matrix, roc_curve, confusion_matrix, \
-    ConfusionMatrixDisplay
+from sklearn.metrics import auc, roc_curve, confusion_matrix, ConfusionMatrixDisplay
 from sklearn.model_selection import KFold, train_test_split, RandomizedSearchCV, StratifiedKFold
 from sklearn.manifold import TSNE
 
@@ -114,7 +111,8 @@ def view2D(out, color, axis, size=70, maximum=11, legend_title='', title=''):
     if torch.is_tensor(out):
         out = out.detach().cpu().numpy()
     if torch.is_tensor(color):
-        color = label.detach().cpu().numpy()
+        # fix: 修复报错 label
+        color = color.detach().cpu().numpy()
 
     z = TSNE(n_components=2).fit_transform(out)
 
