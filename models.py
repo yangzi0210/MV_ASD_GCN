@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch.nn import Transformer
 from torch_geometric.nn import global_mean_pool as gap, global_max_pool as gmp
 from layers import HGPSLPool
-from torch_geometric.nn import GCNConv, APPNP, ClusterGCNConv, ChebConv, GINConv, GATConv, GATv2Conv
+from torch_geometric.nn import GCNConv, APPNP, ClusterGCNConv, ChebConv, GraphSAGE, GATConv, GATv2Conv
 
 
 # -------------  TODO:  正确合理修改 MLP 结构 ----------------------------------
@@ -25,6 +25,9 @@ from torch_geometric.nn import GCNConv, APPNP, ClusterGCNConv, ChebConv, GINConv
 #
 # 变换器（Transformers）:
 # 虽然变换器模型通常用于处理文本数据，但它们的自注意力机制可以应用于任何类型的序列数据。你可以将378维向量视为序列，并使用变换器提取全局依赖关系。
+#
+# 残差网络(ResNet)
+
 
 # Model of hierarchical graph pooling
 class GPModel(torch.nn.Module):
@@ -109,6 +112,7 @@ class MultilayerPerceptron(torch.nn.Module):
         return x, features
 
 
+# VAE
 # class VariationalAutoencoder(nn.Module):
 #     def __init__(self, args):
 #         super(VariationalAutoencoder, self).__init__()
@@ -199,6 +203,7 @@ class Autoencoder(nn.Module):
         # encoded 128 * 64
         return reconstructed, feature
 
+
 # ResNet
 class ResidualBlock(nn.Module):
     def __init__(self, num_features, nhid):
@@ -218,6 +223,8 @@ class ResidualBlock(nn.Module):
         out += identity  # Add the input x to the output
         out = F.relu(out)  # Apply activation function
         return out
+
+
 class ResNet(nn.Module):
     def __init__(self, args):
         super(ResNet, self).__init__()
@@ -249,6 +256,8 @@ class ResNet(nn.Module):
         # for training phase
         x = torch.flatten(self.lin3(x))
         return x, features
+
+
 # Transformer
 class Transformer(nn.Module):
     def __init__(self, args):
@@ -428,5 +437,61 @@ class GCN(torch.nn.Module):
         x = F.dropout(x, p=self.dropout_ratio, training=self.training)
         x = self.conv2(x, edge_index)
         # store the learned node embeddings
+        x = torch.flatten(x)
+        return x, features
+
+
+class ChebGCN(torch.nn.Module):
+    def __init__(self, args):
+        super(GCN, self).__init__()
+        self.num_features = args.num_features
+        self.nhid = args.nhid
+        self.dropout_ratio = args.dropout_ratio
+        # feat： 修改模型结构
+        self.conv1 = GCNConv(self.num_features, self.nhid)
+        self.conv2 = ChebConv(self.nhid, self.nhid // 2, 6)
+        self.conv3 = ClusterGCNConv(self.nhid // 2, 1)
+
+    def forward(self, x, edge_index, edge_weight):
+        x = self.conv1(x, edge_index, edge_weight)
+        x = x.relu()
+        x = F.dropout(x, p=self.dropout_ratio, training=self.training)
+
+        x = self.conv2(x, edge_index, edge_weight)
+        x = x.relu()
+        # store the learned node embeddings
+        features = x
+        x = F.dropout(x, p=self.dropout_ratio, training=self.training)
+
+        x = self.conv3(x, edge_index)
+
+        x = torch.flatten(x)
+        return x, features
+
+
+class GraphSAGEGCN(torch.nn.Module):
+    def __init__(self, args):
+        super(GCN, self).__init__()
+        self.num_features = args.num_features
+        self.nhid = args.nhid
+        self.dropout_ratio = args.dropout_ratio
+        # feat： 修改模型结构
+        self.conv1 = GCNConv(self.num_features, self.nhid)
+        self.conv2 = GraphSAGE(self.nhid, self.nhid * 2, 2, self.nhid // 2)
+        self.conv3 = ClusterGCNConv(self.nhid // 2, 1)
+
+    def forward(self, x, edge_index, edge_weight):
+        x = self.conv1(x, edge_index, edge_weight)
+        x = x.relu()
+        x = F.dropout(x, p=self.dropout_ratio, training=self.training)
+
+        x = self.conv2(x, edge_index, edge_weight)
+        x = x.relu()
+        # store the learned node embeddings
+        features = x
+        x = F.dropout(x, p=self.dropout_ratio, training=self.training)
+
+        x = self.conv3(x, edge_index)
+
         x = torch.flatten(x)
         return x, features
