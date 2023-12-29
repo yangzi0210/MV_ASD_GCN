@@ -48,17 +48,22 @@ class GPModel(torch.nn.Module):
         self.pool3 = HGPSLPool(self.num_features, self.pooling_ratio, self.sample, self.sparse, self.sl, self.lamb)
 
     def forward(self, data):
+        # x: 14208 * 189 = 128 * 111 * 189
         x, edge_index, batch = data.x, data.edge_index, data.batch
 
         # initialize edge weights
         edge_attr = None
 
         # hierarchical pooling
+        # 0.05 时 x: 768 * 189 = num_nodes * pooling_ration * 189
         x, edge_index, edge_attr, batch = self.pool1(x, edge_index, edge_attr, batch)
-        # x Tensor 128 * 189
         # x1 Tensor 128 * 378
         # 按照维数 1 （列）拼接
+        # gmp gap: Tensor 128(batch) * 189
+        # 图池化
         x1 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
+        # gmp_x = gmp(x, batch)
+        # gap_x = gap(x, batch)
 
         x, edge_index, edge_attr, batch = self.pool2(x, edge_index, edge_attr, batch)
         x2 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)

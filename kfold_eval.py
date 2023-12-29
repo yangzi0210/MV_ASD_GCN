@@ -6,8 +6,7 @@ import torch
 import pandas as pd
 import numpy as np
 from training import train_mlp, test_mlp, train_gcn, test_gcn
-from models import GPModel, MultilayerPerceptron, GCN, TransformerModel, Autoencoder, RecurrentNeuralNetwork, RNNModel, \
-    Transformer
+from models import GPModel, MultilayerPerceptron, GCN, Autoencoder, RecurrentNeuralNetwork, RNNModel, Transformer
 from sklearn.model_selection import KFold
 from torch.utils.data import Subset
 from torch_geometric.data import DataLoader, Data

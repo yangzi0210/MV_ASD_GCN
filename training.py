@@ -9,8 +9,7 @@ import numpy as np
 import shutil
 from torch_geometric.datasets import TUDataset
 from torch_geometric.data import DataLoader
-from models import GPModel, MultilayerPerceptron, TransformerModel, RecurrentNeuralNetwork, Autoencoder, RNNModel, \
-    Transformer
+from models import GPModel, MultilayerPerceptron, RecurrentNeuralNetwork, Autoencoder, RNNModel, Transformer
 
 import torch.nn as nn
 

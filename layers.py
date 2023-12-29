@@ -107,10 +107,12 @@ class HGPSLPool(torch.nn.Module):
             batch = edge_index.new_zeros(x.size(0))
 
         x_information_score = self.calc_information_score(x, edge_index, edge_attr)
+        # 14208 = 128 * 111 每个节点的得分
         score = torch.sum(torch.abs(x_information_score), dim=1)
 
         # Graph Pooling
         original_x = x
+        # perm: Tensor 768 筛选出前 pooling_ratio * num_nodes 个节点
         perm = topk(score, self.ratio, batch)
         x = x[perm]
         batch = batch[perm]
