@@ -93,7 +93,7 @@ def brain_graph(logs, atlas, path, data_folder):
         # the shortest one, 78.
         ho_rois = pd.read_csv(file_path, sep='\t').iloc[:78, :].T
         node_att = pd.concat([node_att, ho_rois])
-
+    # 96681 * 785 = 111 * 871 * 785
     node_att.to_csv(os.path.join(path, 'ABIDE_node_attributes.txt'), index=False, header=False)
 
     print('The shape of node attributes is (%d, %d)' % node_att.shape)

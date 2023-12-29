@@ -19,7 +19,7 @@ parser.add_argument('--nhid', type=int, default=256, help='hidden size of MLP')
 parser.add_argument('--pooling_ratio', type=float, default=0.05, help='pooling ratio')
 parser.add_argument('--dropout_ratio', type=float, default=0.01, help='dropout ratio')
 parser.add_argument('--data_dir', type=str, default='./data', help='root of all the datasets')
-parser.add_argument('--device', type=str, default='cuda:0', help='specify cuda devices')
+parser.add_argument('--device', type=str, default='cpu', help='for macos')
 parser.add_argument('--check_dir', type=str, default='./checkpoints', help='root of saved models')
 parser.add_argument('--result_dir', type=str, default='./results', help='root of classification results')
 parser.add_argument('--verbose', type=bool, default=True, help='print training details')
@@ -40,6 +40,9 @@ if __name__ == '__main__':
     start_time = datetime.now()
 
     # load sparse brain networking
+    '''
+    numpy array 871 * 379 float
+    '''
     downsample = pd.read_csv(downsample_file, header=None, sep='\t').values
 
     kfold_mlp(downsample, args)

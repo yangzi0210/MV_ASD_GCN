@@ -6,7 +6,8 @@ import torch
 import pandas as pd
 import numpy as np
 from training import train_mlp, test_mlp, train_gcn, test_gcn
-from models import GPModel, MultilayerPerceptron, GCN, TransformerModel
+from models import GPModel, MultilayerPerceptron, GCN, TransformerModel, Autoencoder, RecurrentNeuralNetwork, RNNModel, \
+    Transformer
 from sklearn.model_selection import KFold
 from torch.utils.data import Subset
 from torch_geometric.data import DataLoader, Data
@@ -71,8 +72,8 @@ def kfold_mlp(data, args):
                     assert np.array_equal(test_idx, saved_indices), \
                         'Something goes wrong with 10-fold cross-validation'
 
-                # set model
-                model = MultilayerPerceptron(args).to(args.device)
+                # set model change model here
+                model = Transformer(args).to(args.device)
                 opt = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
                 # Set training and validation set
@@ -86,8 +87,6 @@ def kfold_mlp(data, args):
                     'Something goes wrong with 10-fold cross-validation'
 
                 # Build the data loader
-
-                # --------------------------- chores: GPU 占用率低 使用 num_worker 看看能不能加速 不行---------------------------
 
                 training_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True)
                 validation_loader = DataLoader(val_set, batch_size=args.batch_size, shuffle=False)
@@ -171,8 +170,10 @@ def kfold_gcn(edge_index, edge_attr, num_samples, args):
         feature_path = os.path.join(fold_path, 'features.txt')
         assert os.path.exists(feature_path), \
             'No further learned features found!'
+        # content: 871 * 129
         content = pd.read_csv(feature_path, header=None, sep='\t')
-
+        # x 871 * 128
+        # y 871
         x = content.iloc[:, :-1].values
         y = content.iloc[:, -1].values
 
@@ -199,7 +200,7 @@ def kfold_gcn(edge_index, edge_attr, num_samples, args):
             'Something wrong with the cross-validation!'
 
         # Batch-size is meaningless
-        # feat: 不行 添加 num_worker 看看能不能提高GPU占用率 num_workers的经验设置值是自己电脑/服务器的CPU核心数  i7-11700核心为 8
+
         loader = DataLoader([data], batch_size=1)
 
         # Model training

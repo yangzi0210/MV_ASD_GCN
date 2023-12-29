@@ -9,7 +9,8 @@ import numpy as np
 import shutil
 from torch_geometric.datasets import TUDataset
 from torch_geometric.data import DataLoader
-from models import GPModel, MultilayerPerceptron, TransformerModel
+from models import GPModel, MultilayerPerceptron, TransformerModel, RecurrentNeuralNetwork, Autoencoder, RNNModel, \
+    Transformer
 
 import torch.nn as nn
 
@@ -24,6 +25,12 @@ def graph_pooling(args):
     """
     torch.manual_seed(args.seed)
     # load data
+    # 在PyTorch
+    # Geometric中，当你加载一个图数据集如TUDataset时，如果你设置use_node_attr = True，
+    # 这意味着你想要加载和使用节点属性。这些节点属性通常已经预定义在数据集中，作为节点的特征向量。
+    # 当你加载数据集后，TUDataset类会自动处理这些节点属性，并将其转换为PyTorch张量。属性num_features通常不需要手动设置
+    # 因为它是从数据集本身推断出来的。num_features代表每个节点的特征数量，即特征向量的维度。
+    # 在你提供的代码中，虽然没有显式指定num_features的值，但当你加载ABIDE数据集后，TUDataset自动读取了节点属性，并确定了特征向量的维度是189。
     abide_dataset = TUDataset(args.data_dir, name='ABIDE', use_node_attr=True)
     args.num_classes = abide_dataset.num_classes
     args.num_features = abide_dataset.num_features
@@ -35,11 +42,26 @@ def graph_pooling(args):
     abide_loader = DataLoader(abide_dataset, batch_size=args.batch_size, shuffle=False)
     downsample = []
     label = []
+    """
+    data: x = [96681,189] edge_index=[2,5461170] y =[871] 
+    downsample: list 128 * 378 -> 256 * 378 ... -> 871 * 378
+    x：节点特征矩阵。在图数据中，x通常是一个二维的张量（Tensor），其大小为[num_nodes, num_node_features]
+    这里num_nodes是图中节点的数量，num_node_features是每个节点特征的维度。每一行代表一个节点的特征向量。
+    
+    y：节点或图的标签。y可以是一个向量或一个张量，它包含每个节点或整个图的标签信息。
+    在节点级别的任务中（如节点分类），y的大小通常是[num_nodes]，每个元素对应一个节点的标签。
+    在图级别的任务中（如图分类），y的大小可能是[num_graphs]，每个元素对应一个图的标签。
+    
+    edge_index：边索引。edge_index是一个二维的张量，大小为[2, num_edges]，这里num_edges是图中边的数量。
+    每一列代表一条边，其中第一行的元素是边的起始节点索引，第二行的元素是边的终止节点索引。
+    例如，如果edge_index的第一列是[0, 2]，这表示节点0和节点2之间有一条边。
+    edge_index用于描述图的结构，即节点间的连接关系。
+    """
     for i, data in enumerate(abide_loader):
         data = data.to(args.device)
         downsample += gp(data).cpu().detach().numpy().tolist()
         label += data.y.cpu().detach().numpy().tolist()
-        print(downsample, 'downsample')
+        # print(downsample, 'downsample')
     downsample_df = pd.DataFrame(downsample)
     # store the label, in case of data samples shuffle
     downsample_df['label'] = label
@@ -76,7 +98,7 @@ def test_mlp(model, loader, args):
         pred = (out > 0).long()
         correct += pred.eq(data_y).sum().item()
         loss_func = nn.BCEWithLogitsLoss()
-        loss_test += loss_func(out, data_y.float()).item()
+        loss_test += loss_func(out, data_y.float().unsqueeze(1)).item()
     return correct / len(loader.dataset), loss_test
 
 
@@ -108,12 +130,13 @@ def train_mlp(model, train_loader, val_loader, optimizer, save_path, args):
     for epoch in range(args.epochs):
         loss_train = 0.0
         correct = 0
+        # data_x 128 * 378 data_y 128
         for i, (data_x, data_y) in enumerate(train_loader):
             optimizer.zero_grad()
             data_x, data_y = data_x.to(args.device), data_y.to(args.device)
             out, _ = model(data_x)
             loss_func = nn.BCEWithLogitsLoss()
-            loss = loss_func(out, data_y.float())
+            loss = loss_func(out, data_y.float().unsqueeze(1))  # 注意看情况加 .unsqueeze
             loss.backward()
             optimizer.step()
             loss_train += loss.item()
@@ -197,10 +220,9 @@ def extract(data, args, least_epochs=100):
         checkpoint = torch.load(os.path.join(fold_dir, best_model))
         model_args = checkpoint['args']
         dataloader = DataLoader(dataset, batch_size=model_args.batch_size, shuffle=False)
-
-        model = MultilayerPerceptron(model_args).to(model_args.device)
+        # change model here
+        model = Transformer(model_args).to(model_args.device)
         # load model
-        # fix: 尝试修复报错
 
         model.load_state_dict(checkpoint['net'], strict=False)
 

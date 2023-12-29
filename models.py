@@ -8,21 +8,23 @@ from torch_geometric.nn import GCNConv, APPNP, ClusterGCNConv, ChebConv, GINConv
 
 
 # -------------  TODO:  正确合理修改 MLP 结构 ----------------------------------
-# RNN Transformer
-# 线性回归:
-# 适用于线性关系的问题，尤其是当输入特征与目标变量之间存在线性关系时。
-# 决策树回归:
-# 通过构建树状结构来对输入空间进行划分，每个叶子节点对应一个目标值。
-# 随机森林回归:
-# 由多个决策树组成的集成模型，通过综合多个模型的预测来提高性能和鲁棒性。
-# 支持向量机回归:
-# 通过找到将特征映射到高维空间后能够分隔目标变量的超平面。
-# K近邻回归:
-# 通过找到与给定实例最近的 k 个实例，并取其目标变量的平均值来进行预测。
-# 神经网络 (深度学习) 模型:
-# 除了上面示例的 MLP，还有其他深度学习架构，如卷积神经网络 (CNN) 和循环神经网络 (RNN)，可以用于处理回归问题。
-# 梯度提升机 (Gradient Boosting):
-# 通过迭代地训练弱模型，并根据前一个模型的误差来调整参数，从而逐步提高模型性能。
+# 如果你的输入特征是一维的378长度的向量，那么除了多层感知机（MLP）之外，还有多种不同的方法可以用来提取特征。以下是一些常见的方法：
+#
+# 卷积神经网络（CNN）:
+# 即使CNN通常用于处理图像数据，你也可以将一维向量重新塑形成一维序列或虚构的二维数据（比如一个宽度为378，高度为1的图像）
+# 然后使用一维或二维卷积来提取局部特征。
+#
+# 递归神经网络（RNN）:
+# 对于序列数据，RNN及其变体（如LSTM或GRU）可以有效地处理输入特征。你可以将378维向量视为序列，并通过RNN来提取时间或顺序相关的特征。
+#
+# 自编码器（Autoencoders）:
+# 自编码器可以通过无监督学习来学习输入数据的有效表示。一个典型的自编码器包括一个编码器（将输入压缩成一个低维表示）和一个解码器（从低维表示重构输入）。
+#
+# 变分自编码器（Variational Autoencoders，VAEs）:
+# VAE是自编码器的一种，它不仅学习数据的压缩表示，还学习数据的概率分布。这可以用于生成新的数据样本，或者作为特征提取器。
+#
+# 变换器（Transformers）:
+# 虽然变换器模型通常用于处理文本数据，但它们的自注意力机制可以应用于任何类型的序列数据。你可以将378维向量视为序列，并使用变换器提取全局依赖关系。
 
 # Model of hierarchical graph pooling
 class GPModel(torch.nn.Module):
@@ -50,6 +52,9 @@ class GPModel(torch.nn.Module):
 
         # hierarchical pooling
         x, edge_index, edge_attr, batch = self.pool1(x, edge_index, edge_attr, batch)
+        # x Tensor 128 * 189
+        # x1 Tensor 128 * 378
+        # 按照维数 1 （列）拼接
         x1 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
 
         x, edge_index, edge_attr, batch = self.pool2(x, edge_index, edge_attr, batch)
@@ -57,8 +62,7 @@ class GPModel(torch.nn.Module):
 
         x, edge_index, edge_attr, batch = self.pool3(x, edge_index, edge_attr, batch)
         x3 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
-
-        # Fuse the above three pooling results
+        # Fuse the above three pooling results: x Tensor 128 * 378 = batch * 189(时间序列) * 2
         x = F.relu(x1) + F.relu(x2) + F.relu(x3)
 
         # return the selected substructures
@@ -67,6 +71,17 @@ class GPModel(torch.nn.Module):
 
 # Multilayer Perceptron
 class MultilayerPerceptron(torch.nn.Module):
+    """
+    这个函数接收一个参数args，它包含模型配置的属性。
+    self.num_features是输入特征的维度。
+    self.nhid是隐藏层的神经元数量。
+    self.dropout_ratio是dropout操作的概率，用于防止过拟合。
+    创建三个全连接层（self.lin1，self.lin2，和self.lin3），这些层通过线性变换将数据从一个空间映射到另一个空间。
+    第一层self.lin1将输入特征映射到self.nhid个神经元。
+    第二层self.lin2将第一隐藏层的输出再映射到self.nhid // 2 个神经元。
+    第三层self.lin3将第二隐藏层的输出映射到一个单一的输出节点，用于二分类。
+    """
+
     def __init__(self, args):
         super(MultilayerPerceptron, self).__init__()
         self.num_features = args.num_features
@@ -78,66 +93,190 @@ class MultilayerPerceptron(torch.nn.Module):
         self.lin3 = torch.nn.Linear(self.nhid // 2, 1)
 
     def forward(self, x):
+        # x: 128 * 378
         x = F.relu(self.lin1(x))
         x = F.dropout(x, p=self.dropout_ratio, training=self.training)
+        # 128 * 256
         x = F.relu(self.lin2(x))
         x = F.dropout(x, p=self.dropout_ratio, training=self.training)
 
+        # further learned features
+        # 128 * 128
+        features = x
+        # for training phase
+        # x: 128 * 128 -> 128
+        x = torch.flatten(self.lin3(x))
+        return x, features
+
+
+# class VariationalAutoencoder(nn.Module):
+#     def __init__(self, args):
+#         super(VariationalAutoencoder, self).__init__()
+#         self.num_features = args.num_features
+#         self.nhid = args.nhid
+#         self.dropout_ratio = args.dropout_ratio
+#
+#         # Encoder
+#         self.fc1 = nn.Linear(self.num_features, self.nhid)
+#         self.fc2_mean = nn.Linear(self.nhid, self.nhid // 2)
+#         self.fc2_logvar = nn.Linear(self.nhid, self.nhid // 2)
+#
+#         # Decoder
+#         self.fc3 = nn.Linear(self.nhid // 2, self.nhid)
+#         self.fc4 = nn.Linear(self.nhid, self.num_features)
+#
+#         # Feature layer
+#         self.feature_layer = nn.Linear(self.nhid // 2, self.nhid // 2)
+#
+#     def encode(self, x):
+#         h1 = F.relu(self.fc1(x))
+#         h1 = F.dropout(h1, p=self.dropout_ratio, training=self.training)
+#         return self.fc2_mean(h1), self.fc2_logvar(h1)
+#
+#     def reparameterize(self, mu, logvar):
+#         std = torch.exp(0.5 * logvar)
+#         eps = torch.randn_like(std)
+#         return mu + eps * std
+#
+#     def decode(self, z):
+#         h3 = F.relu(self.fc3(z))
+#         h3 = F.dropout(h3, p=self.dropout_ratio, training=self.training)
+#         return torch.sigmoid(self.fc4(h3))
+#
+#     def forward(self, x):
+#         mu, logvar = self.encode(x.view(-1, self.num_features))
+#         z = self.reparameterize(mu, logvar)
+#         features = self.feature_layer(z)  # Extracted features
+#         reconstructed_x = self.decode(z)
+#         x = torch.mean(reconstructed_x, dim=1)
+#         return x, features
+#
+#
+# # Define loss function for VAE
+# def loss_function(recon_x, x, mu, logvar):
+#     BCE = F.binary_cross_entropy(recon_x, x.view(-1, recon_x.size(1)), reduction='sum')
+#     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+#     return BCE + KLD
+
+
+# Auto Encoder
+
+# AE
+class Autoencoder(nn.Module):
+    def __init__(self, args):
+        super(Autoencoder, self).__init__()
+        self.num_features = args.num_features
+        self.nhid = args.nhid
+        self.dropout_ratio = args.dropout_ratio
+
+        # 编码器
+        self.encoder_lin1 = nn.Linear(self.num_features, self.nhid)
+        self.encoder_lin2 = nn.Linear(self.nhid, self.nhid // 2)
+        self.encoder_lin3 = nn.Linear(self.nhid // 2, self.nhid // 4)  # 假设编码到更小的维度
+
+        # 解码器
+        self.decoder_lin1 = nn.Linear(self.nhid // 4, self.nhid // 2)
+        self.decoder_lin2 = nn.Linear(self.nhid // 2, self.nhid)
+        self.decoder_lin3 = nn.Linear(self.nhid, self.num_features)
+
+    def forward(self, x):
+        # 编码过程
+        x = F.relu(self.encoder_lin1(x))
+        x = F.dropout(x, p=self.dropout_ratio, training=self.training)
+        x = F.relu(self.encoder_lin2(x))
+        x = F.dropout(x, p=self.dropout_ratio, training=self.training)
+        feature = x
+        encoded = F.relu(self.encoder_lin3(x))
+
+        # 解码过程
+        x = F.relu(self.decoder_lin1(encoded))
+        x = F.relu(self.decoder_lin2(x))
+        reconstructed = self.decoder_lin3(x)
+
+        # return x 应该是一个展平的 128 一维向量 for train
+        reconstructed = torch.mean(reconstructed, dim=1)
+        # reconstructed 128 * 378
+        # encoded 128 * 64
+        return reconstructed, feature
+
+# ResNet
+class ResidualBlock(nn.Module):
+    def __init__(self, num_features, nhid):
+        super(ResidualBlock, self).__init__()
+        self.lin1 = nn.Linear(num_features, nhid)
+        self.bn1 = nn.BatchNorm1d(nhid)
+        self.lin2 = nn.Linear(nhid, num_features)
+        self.bn2 = nn.BatchNorm1d(num_features)
+
+    def forward(self, x):
+        identity = x
+        out = self.lin1(x)
+        out = self.bn1(out)
+        out = F.relu(out)
+        out = self.lin2(out)
+        out = self.bn2(out)
+        out += identity  # Add the input x to the output
+        out = F.relu(out)  # Apply activation function
+        return out
+class ResNet(nn.Module):
+    def __init__(self, args):
+        super(ResNet, self).__init__()
+        self.num_features = args.num_features
+        self.nhid = args.nhid
+        self.dropout_ratio = args.dropout_ratio
+
+        # Define the ResNet layers
+        self.lin1 = nn.Linear(self.num_features, self.nhid)
+        self.bn1 = nn.BatchNorm1d(self.nhid)
+        self.res_block1 = ResidualBlock(self.nhid, self.nhid // 2)
+        self.res_block2 = ResidualBlock(self.nhid, self.nhid // 2)
+        self.lin2 = nn.Linear(self.nhid, self.nhid // 2)
+        self.lin3 = nn.Linear(self.nhid // 2, 1)
+
+    def forward(self, x):
+        x = self.lin1(x)
+        x = self.bn1(x)
+        x = F.relu(x)
+        x = F.dropout(x, p=self.dropout_ratio, training=self.training)
+        x = self.res_block1(x)
+        x = self.res_block2(x)
+        x = self.lin2(x)
+        x = F.relu(x)
+        x = F.dropout(x, p=self.dropout_ratio, training=self.training)
+        # print(x.shape)
         # further learned features
         features = x
         # for training phase
         x = torch.flatten(self.lin3(x))
         return x, features
-
-
-## TODO Transformer搭建
-class TransformerModel(nn.Module):
-    def __init__(self, args, num_classes=2):
-        super(TransformerModel, self).__init__()
-        args.num_layers = 1
-        self.embedding_dim = args.nhid
-        self.nhead = args.nhid // 2
-        self.dim_feedforward = args.nhid * 2
-        self.embedding = nn.Embedding(args.num_features, self.embedding_dim)
-
-        # 使用 nn.Transformer 定义 Transformer 模型
-        self.transformer = nn.Transformer(
-            d_model=self.embedding_dim,
-            nhead=self.nhead,
-            num_encoder_layers=args.num_layers,
-            num_decoder_layers=args.num_layers,
-            dim_feedforward=self.dim_feedforward,
-            dropout=args.dropout_ratio
-        )
-
-        # 全连接层，用于输出二分类结果
-        self.fc = nn.Linear(self.embedding_dim, num_classes)
+# Transformer
+class Transformer(nn.Module):
+    def __init__(self, args):
+        super(Transformer, self).__init__()
+        self.dropout_ratio = args.dropout_ratio
+        self.num_layers = 3
+        self.embedding = nn.Linear(args.num_features,
+                                   args.nhid)  # Assuming input_size is the same as embedding size for simplicity
+        encoder_layer = nn.TransformerEncoderLayer(d_model=args.nhid, nhead=2, dropout=args.dropout_ratio)
+        self.transformer_encoder = nn.TransformerEncoder(encoder_layer, self.num_layers)
+        self.fc1 = nn.Linear(args.nhid, args.nhid // 2)
+        self.fc2 = nn.Linear(args.nhid // 2, 1)
 
     def forward(self, x):
-        # 输入x的维度为 (batch_size, num_features)
-        x = x.long()
-        # 通过嵌入层
-        vocab_size = max(378, torch.max(x).to("cuda").item() + 1)
-        self.embedding = nn.Embedding(vocab_size, self.embedding_dim)
-        x = self.embedding(x)
-
-        # Transformer模型的输入要求为 (sequence_length, batch_size, embedding_dim)
-        x = x.permute(1, 0, 2)
-
-        # Transformer模型的前向传播
-        x = self.transformer(x, x)
-        # feature
-        feature = x
-        # 取Transformer模型的最后一个位置的输出
-        x = x[-1, :, :]
-
-        # 全连接层
-        x = self.fc(x)
-
-        # 二分类任务通常使用 sigmoid 激活函数输出概率
-        x = torch.sigmoid(x)
-
-        return x, feature
+        # 128 * 378
+        # x: batch_size * seq_length * input_size
+        # Assuming x is already batched and has shape (batch_size, seq_length, input_size)
+        x = self.embedding(x)  # Embed the input
+        # x = x.permute(1, 0, 2)  # Transformer expects seq_length, batch_size, input_size
+        out = self.transformer_encoder(x)
+        # out = out.permute(1, 0, 2)  # Convert back to batch_size, seq_length, input_size
+        # out = F.relu(out[:, -1, :])  # Take the output of the last token
+        out = self.fc1(out)
+        out = F.relu(out)
+        out = F.dropout(out, self.dropout_ratio, self.training)
+        features = out
+        out = self.fc2(out)
+        return out, features
 
 
 # CNN
@@ -204,7 +343,7 @@ class ConvolutionalNeuralNetwork(nn.Module):
 class RecurrentNeuralNetwork(nn.Module):
     def __init__(self, args):
         super(RecurrentNeuralNetwork, self).__init__()
-        args.num_layers = 1  # TODO 调参
+        args.num_layers = 3
         self.num_features = args.num_features
         self.nhid = args.nhid
         self.dropout_ratio = args.dropout_ratio
@@ -246,6 +385,30 @@ class RecurrentNeuralNetwork(nn.Module):
         return out, feature
 
 
+class RNNModel(nn.Module):
+    def __init__(self, args):
+        super(RNNModel, self).__init__()
+        args.num_layers = 3
+        self.dropout_ratio = args.dropout_ratio
+        self.rnn = nn.RNN(args.num_features, args.nhid, args.num_layers, batch_first=True, dropout=args.dropout_ratio)
+        self.fc1 = nn.Linear(args.nhid, args.nhid // 2)
+        self.fc2 = nn.Linear(args.nhid // 2, 1)
+
+    def forward(self, x):
+        # x: batch_size * input_size
+        # fix: RuntimeError: cudnn RNN backward can only be called in training mode
+        self.train()
+        x, _ = self.rnn(x)
+        # x: 128 * 378
+        # x = F.relu(x[-1,:])  # Take the output of the last time step
+        x = self.fc1(x)
+        x = F.relu(x)
+        x = F.dropout(x, p=self.dropout_ratio, training=self.training)
+        features = x
+        x = torch.flatten(self.fc2(x))
+        return x, features
+
+
 # Model of graph convolutional Networks run on population graph
 class GCN(torch.nn.Module):
     def __init__(self, args):
@@ -255,23 +418,15 @@ class GCN(torch.nn.Module):
         self.dropout_ratio = args.dropout_ratio
         # define the gcn layers. As stated in the paper,
         # herein, we have employed GCNConv and ClusterGCN
-        # feat： 修改GCN模型结构
         self.conv1 = GCNConv(self.num_features, self.nhid)
-        self.conv2 = ChebConv(self.nhid, self.nhid // 2, 6)
-        self.conv3 = ClusterGCNConv(self.nhid // 2, 1)
+        self.conv2 = ClusterGCNConv(self.nhid, 1)
 
     def forward(self, x, edge_index, edge_weight):
         x = self.conv1(x, edge_index, edge_weight)
         x = x.relu()
-        x = F.dropout(x, p=self.dropout_ratio, training=self.training)
-
-        x = self.conv2(x, edge_index, edge_weight)
-        x = x.relu()
-        # store the learned node embeddings
         features = x
         x = F.dropout(x, p=self.dropout_ratio, training=self.training)
-
-        x = self.conv3(x, edge_index)
-
+        x = self.conv2(x, edge_index)
+        # store the learned node embeddings
         x = torch.flatten(x)
         return x, features
