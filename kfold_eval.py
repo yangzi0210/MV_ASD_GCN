@@ -72,7 +72,7 @@ def kfold_mlp(data, args):
                         'Something goes wrong with 10-fold cross-validation'
 
                 # set model change model here
-                model = Transformer(args).to(args.device)
+                model = MultilayerPerceptron(args).to(args.device)
                 opt = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
                 # Set training and validation set

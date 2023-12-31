@@ -97,7 +97,7 @@ def test_mlp(model, loader, args):
         pred = (out > 0).long()
         correct += pred.eq(data_y).sum().item()
         loss_func = nn.BCEWithLogitsLoss()
-        loss_test += loss_func(out, data_y.float().unsqueeze(1)).item()
+        loss_test += loss_func(out, data_y.float()).item()
     return correct / len(loader.dataset), loss_test
 
 
@@ -135,7 +135,7 @@ def train_mlp(model, train_loader, val_loader, optimizer, save_path, args):
             data_x, data_y = data_x.to(args.device), data_y.to(args.device)
             out, _ = model(data_x)
             loss_func = nn.BCEWithLogitsLoss()
-            loss = loss_func(out, data_y.float().unsqueeze(1))  # 注意看情况加 .unsqueeze
+            loss = loss_func(out, data_y.float())  # 注意看情况加 .unsqueeze
             loss.backward()
             optimizer.step()
             loss_train += loss.item()
@@ -220,7 +220,7 @@ def extract(data, args, least_epochs=100):
         model_args = checkpoint['args']
         dataloader = DataLoader(dataset, batch_size=model_args.batch_size, shuffle=False)
         # change model here
-        model = Transformer(model_args).to(model_args.device)
+        model = MultilayerPerceptron(model_args).to(model_args.device)
         # load model
 
         model.load_state_dict(checkpoint['net'], strict=False)

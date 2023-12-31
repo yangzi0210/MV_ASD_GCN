@@ -424,6 +424,7 @@ class RNNModel(nn.Module):
 
 
 # Model of graph convolutional Networks run on population graph
+
 class GCN(torch.nn.Module):
     def __init__(self, args):
         super(GCN, self).__init__()
