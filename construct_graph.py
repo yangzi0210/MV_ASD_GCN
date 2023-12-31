@@ -7,6 +7,8 @@ import pandas as pd
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.metrics.pairwise import cosine_similarity
 
+from util import calculate_similarity_matrix_euclidean
+
 
 def brain_graph(logs, atlas, path, data_folder):
     if not os.path.exists(path):
@@ -123,25 +125,42 @@ def population_graph(args):
     :param args: args from main.py
     :return: adj, att: adjacency matrix and edge weights
     """
+    # TODO: 多视图 sex site age handedness ...
+
     # considering phenotypic information: gender, age and site
+
     cluster_att = ['SEX', 'SITE_ID']
     # get text information: sex, site
     logs = pd.read_csv(os.path.join(args.data_dir, 'phenotypic', 'log.csv'))
+    # text_info = 871 * 2
     text_info = logs[cluster_att].values
+    # HANDEDNESS_CATEGORY,HANDEDNESS_SCORES 不全
+    handedness_category = logs['HANDEDNESS_CATEGORY'].values
+    handedness_scores = logs['HANDEDNESS_SCORES'].values
+
     enc = OneHotEncoder()
     enc.fit(text_info)
+    # text_feature: 871 * 22
     text_feature = enc.transform(text_info).toarray()
 
     # take ages into consideration
     ages = logs['AGE_AT_SCAN'].values
     # Normalization
     ages = (ages - min(ages)) / (max(ages) - min(ages))
-
+    # 871 * 23
     cluster_features = np.c_[text_feature, ages]
 
     adj = []
     att = []
+    # 871 * 871
     sim_matrix = cosine_similarity(cluster_features)
+
+    ages_features = ages.reshape(871, 1)
+    # 站点 性别
+    sim_site_age_matrix = cosine_similarity(text_feature)
+
+    # 年龄的欧式距离作为相似度矩阵
+    sim_ages_matrix = calculate_similarity_matrix_euclidean(ages_features)
     for i in range(871):
         for j in range(871):
             if sim_matrix[i, j] > 0.5 and i > j:

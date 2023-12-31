@@ -1,9 +1,28 @@
 import torch
+from sklearn.metrics import euclidean_distances
 from torch import Tensor
 from typing import Optional, Union, Tuple
 from torch_geometric.utils import scatter, softmax
 from torch_geometric.utils.num_nodes import maybe_num_nodes
 
+
+def calculate_similarity_matrix_euclidean(vectors):
+    """
+    计算向量集合的欧几里德距离相似度矩阵
+
+    参数:
+    vectors (numpy.ndarray): 形状为 (n_samples, n_features) 的二维NumPy数组，其中n_samples是向量的数量，n_features是每个向量的特征数。
+
+    返回:
+    similarity_matrix (numpy.ndarray): 形状为 (n_samples, n_samples) 的相似度矩阵。
+    """
+    # 计算欧几里德距离
+    distances = euclidean_distances(vectors)
+
+    # 将距离转换为相似度（取倒数）
+    similarity_matrix = 1 / (1 + distances)
+
+    return similarity_matrix
 
 def str2float(arr):
     for i in range(len(arr)):
