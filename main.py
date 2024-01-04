@@ -32,10 +32,10 @@ if __name__ == '__main__':
     # check if exists downsampled brain imaging data
     downsample_file = os.path.join(args.data_dir, 'ABIDE_downsample',
                                    'ABIDE_pool_{:.3f}_.txt'.format(args.pooling_ratio))
-    if not os.path.exists(downsample_file):
-        print('Running graph pooling with pooling ratio = {:.3f}'.format(args.pooling_ratio))
-        graph_pooling(args)
-    print('start')
+    # if not os.path.exists(downsample_file):
+    #     print('Running graph pooling with pooling ratio = {:.3f}'.format(args.pooling_ratio))
+    graph_pooling(args)
+    # print('start')
 
     start_time = datetime.now()
 
@@ -45,18 +45,18 @@ if __name__ == '__main__':
     '''
     downsample = pd.read_csv(downsample_file, header=None, sep='\t').values
 
-    kfold_mlp(downsample, args)
+    # kfold_mlp(downsample, args)
 
     # use the best MLP model to extract further learned features
     # from pooling results
-    extract(downsample, args)
+    # extract(downsample, args)
 
     # check if population graph is constructed
     adj_path = os.path.join(args.data_dir, 'population graph', 'ABIDE.adj')
     attr_path = os.path.join(args.data_dir, 'population graph', 'ABIDE.attr')
 
-    if not os.path.exists(adj_path) or not os.path.exists(attr_path):
-        population_graph(args)
+    # if not os.path.exists(adj_path) or not os.path.exists(attr_path):
+    population_graph(args)
 
     # Load population graph
     edge_index = pd.read_csv(adj_path, header=None).values

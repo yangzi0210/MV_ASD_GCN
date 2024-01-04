@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import Transformer
-from torch_geometric.nn import global_mean_pool as gap, global_max_pool as gmp
+from torch_geometric.nn import global_mean_pool, global_max_pool,global_add_pool,TopKPooling,SAGPooling,EdgePooling,ASAPooling,PANPooling,MemPooling
 from layers import HGPSLPool
-from torch_geometric.nn import GCNConv, APPNP, ClusterGCNConv, ChebConv, GraphSAGE, GATConv, GATv2Conv
+from torch_geometric.nn import GCNConv, APPNP, ClusterGCNConv, ChebConv, GraphSAGE
 
 
 # -------------  TODO:  正确合理修改 MLP 结构 ----------------------------------
@@ -61,15 +61,15 @@ class GPModel(torch.nn.Module):
         # 按照维数 1 （列）拼接
         # gmp gap: Tensor 128(batch) * 189
         # 图池化
-        x1 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
+        x1 = torch.cat([global_mean_pool(x, batch), global_max_pool(x, batch)], dim=1)
         # gmp_x = gmp(x, batch)
         # gap_x = gap(x, batch)
 
         x, edge_index, edge_attr, batch = self.pool2(x, edge_index, edge_attr, batch)
-        x2 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
+        x2 = torch.cat([global_mean_pool(x, batch), global_max_pool(x, batch)], dim=1)
 
         x, edge_index, edge_attr, batch = self.pool3(x, edge_index, edge_attr, batch)
-        x3 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
+        x3 = torch.cat([global_mean_pool(x, batch), global_max_pool(x, batch)], dim=1)
         # Fuse the above three pooling results: x Tensor 128 * 378 = batch * 189(时间序列) * 2
         x = F.relu(x1) + F.relu(x2) + F.relu(x3)
 
@@ -428,8 +428,8 @@ class RNNModel(nn.Module):
 class GCN(torch.nn.Module):
     def __init__(self, args):
         super(GCN, self).__init__()
-        self.num_features = args.num_features
-        self.nhid = args.nhid
+        self.num_features = args.num_features  # 128
+        self.nhid = args.nhid # 64
         self.dropout_ratio = args.dropout_ratio
         # define the gcn layers. As stated in the paper,
         # herein, we have employed GCNConv and ClusterGCN
