@@ -29,7 +29,7 @@ parser.add_argument('--verbose', type=bool, default=True, help='print training d
 args = parser.parse_args()
 # Set random seed
 torch.manual_seed(args.seed)
-
+# 读取图结构数据集
 root_path = './data/multiview_graph'
 adj_age_path = os.path.join(root_path, 'ABIDE_age.adj')
 attr_age_path = os.path.join(root_path, 'ABIDE_age.attr')
