@@ -20,6 +20,8 @@ class MultiViewGNN(torch.nn.Module):
         self.conv1_v3 = GCNConv(self.num_features, self.nhid)
         self.conv2_v3 = GCNConv(self.nhid, 1)
 
+        self.lin1 = torch.nn.Linear(self.nhid, 1)
+
     def forward(self, x, edge_index_v1, edge_index_v2, edge_index_v3, edge_weight_v1, edge_weight_v2, edge_weight_v3):
         # 视图1
         x_v1 = F.relu(self.conv1_v1(x, edge_index_v1, edge_weight_v1))
@@ -43,11 +45,12 @@ class MultiViewGNN(torch.nn.Module):
         x_v3 = self.conv2_v3(x_v3, edge_index_v3)
 
         # 合并多视图 - 加和
-        x_multiview = x_v1 + x_v2 + x_v3
+        # x_multiview = x_v1 + x_v2 + x_v3
         # 合并多视图 - 拼接
         # x_multiview = torch.cat((x_v1, x_v2, x_v3), dim=1)  # 注意dim=1表示沿特征的维度拼接
         # 合并多视图 - 自注意力
-        # x_multiview = self.attention_mechanism(x_v1, x_v2, x_v3)
+        x_multiview = self.attention_mechanism(features_v1, features_v2, features_v3)
+        x_multiview = F.relu(self.lin1(x_multiview))
         x = torch.flatten(x_multiview)
 
         features = features_v1 + features_v2 + features_v3

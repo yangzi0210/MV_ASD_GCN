@@ -1,7 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="Black">
-    <option name="sdkName" value="GNN (2)" />
-  </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="GNN (2)" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="ASD_DS_GAD" project-jdk-type="Python SDK" />
 </project>

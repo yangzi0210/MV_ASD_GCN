@@ -9,6 +9,7 @@ from training import graph_pooling, extract
 import warnings
 
 from training_multiview import kfold_multiview_gcn
+from util import read_dataset
 
 warnings.filterwarnings("ignore")  # 忽略UserWarning兼容性警告
 
@@ -29,32 +30,9 @@ parser.add_argument('--verbose', type=bool, default=True, help='print training d
 args = parser.parse_args()
 # Set random seed
 torch.manual_seed(args.seed)
-# 读取图结构数据集
-root_path = './data/multiview_graph'
-adj_age_path = os.path.join(root_path, 'ABIDE_age.adj')
-attr_age_path = os.path.join(root_path, 'ABIDE_age.attr')
-adj_sex_path = os.path.join(root_path, 'ABIDE_sex.adj')
-attr_sex_path = os.path.join(root_path, 'ABIDE_sex.attr')
-adj_site_path = os.path.join(root_path, 'ABIDE_site.adj')
-attr_site_path = os.path.join(root_path, 'ABIDE_site.attr')
-downsample_file = os.path.join('./data', 'ABIDE_downsample',
-                               'ABIDE_pool_{:.3f}_.txt'.format(0.050))
-downsample = pd.read_csv(downsample_file, header=None, sep='\t').values
 
-edge_age_index = pd.read_csv(adj_age_path, header=None).values
-edge_age_attr = pd.read_csv(attr_age_path, header=None).values.reshape(-1)
-edge_age_index = torch.tensor(edge_age_index, dtype=torch.long)
-edge_age_attr = torch.tensor(edge_age_attr, dtype=torch.float)
 
-edge_sex_index = pd.read_csv(adj_sex_path, header=None).values
-edge_sex_attr = pd.read_csv(attr_sex_path, header=None).values.reshape(-1)
-edge_sex_index = torch.tensor(edge_sex_index, dtype=torch.long)
-edge_sex_attr = torch.tensor(edge_sex_attr, dtype=torch.float)
 
-edge_site_index = pd.read_csv(adj_site_path, header=None).values
-edge_site_attr = pd.read_csv(attr_site_path, header=None).values.reshape(-1)
-edge_site_index = torch.tensor(edge_site_index, dtype=torch.long)
-edge_site_attr = torch.tensor(edge_site_attr, dtype=torch.float)
 
 if __name__ == '__main__':
     # check if exists downsampled brain imaging data
@@ -86,12 +64,11 @@ if __name__ == '__main__':
     # if not os.path.exists(adj_path) or not os.path.exists(attr_path):
     multiview_graph(args)
 
-    # Load population graph
-    # edge_index = pd.read_csv(adj_path, header=None).values
-    # edge_attr = pd.read_csv(attr_path, header=None).values.reshape(-1)
-
-    # run GCN
-    kfold_multiview_gcn(edge_age_index, edge_age_attr, edge_sex_index, edge_sex_attr, edge_site_index, edge_site_attr, downsample.shape[0], args)
+    # Load multiview population graph
+    edge_age_index, edge_age_attr, edge_sex_index, edge_sex_attr, edge_site_index, edge_site_attr = read_dataset()
+    # run multiview GCN
+    kfold_multiview_gcn(edge_age_index, edge_age_attr, edge_sex_index, edge_sex_attr, edge_site_index, edge_site_attr,
+                        downsample.shape[0], args)
     end_time = datetime.now()
     spend_time = end_time - start_time
     print('end')
