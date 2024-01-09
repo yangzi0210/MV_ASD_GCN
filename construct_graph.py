@@ -176,7 +176,6 @@ def population_graph(args):
     pd.DataFrame(att).to_csv(os.path.join(args.data_dir, 'population graph', 'ABIDE.attr'), index=False, header=False)
 
 
-
 def multiview_graph(args):
     """
     Build the multiview population graph. The nodes are connected if their cosine similarity is above 0.5
@@ -279,4 +278,3 @@ def multiview_graph(args):
                                   header=False)
     pd.DataFrame(att_site).to_csv(os.path.join(args.data_dir, 'multiview_graph', 'ABIDE_site.attr'), index=False,
                                   header=False)
-

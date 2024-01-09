@@ -27,8 +27,6 @@ class MultiViewGNN(torch.nn.Module):
         self.conv1_v3 = GCNConv(self.num_features, self.nhid)
         self.conv2_v3 = GCNConv(self.nhid, 1)
 
-
-
     def forward(self, x, edge_index_v1, edge_index_v2, edge_index_v3, edge_weight_v1, edge_weight_v2, edge_weight_v3):
         # 视图1
         x_v1 = F.relu(self.conv1_v1(x, edge_index_v1, edge_weight_v1))
@@ -53,21 +51,13 @@ class MultiViewGNN(torch.nn.Module):
 
         # 合并多视图 - 加和
         # x_multiview = x_v1 + x_v2 + x_v3
-        # 合并多视图 - 自注意力
-        # x_multiview = self.attention_mechanism(x_v1, x_v2, x_v3)
-        # x_multiview = F.relu(self.lin1(x_multiview))
-        # x = torch.flatten(x_multiview)
+
         # 在每个视图的特征上分别应用空间和通道注意力
         # x_v1 = self.channel_attention(self.spatial_attention(features_v1))
         # x_v2 = self.channel_attention(self.spatial_attention(features_v2))
         # x_v3 = self.channel_attention(self.spatial_attention(features_v3))
         # 融合特征
         # x_multiview = x_v1 + x_v2 + x_v3
-
-        # 可以选择使用一个线性层进一步转换融合后的特征
-        # x_multiview = F.relu(self.lin1(x_multiview))
-        # 注意力权重
-        # attention_weights = F.softmax(self.attention, dim=0)  # 使用softmax得到归一化的注意力权重
 
         # 融合特征，这里使用了注意力机制
         # x_multiview = attention_weights[0] * x_v1 + attention_weights[1] * x_v2 + attention_weights[2] * x_v3
@@ -153,4 +143,3 @@ class ChannelAttention(torch.nn.Module):
         scale = self.softmax(mlp).unsqueeze(-2)
         weighted_values = x * scale
         return weighted_values
-
