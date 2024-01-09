@@ -3,14 +3,21 @@ import torch.nn.functional as F
 from torch_geometric.nn import GCNConv
 
 
-# TODO：添加注意力机制
+#  添加注意力机制后的多视图代码
+#  每个单视图添加注意力累加 / 多视图融合的时候添加注意力
+#  https://blog.51cto.com/u_16099224/7193830
+#  通道注意力 空间注意力 .....
+
 class MultiViewGNN(torch.nn.Module):
     def __init__(self, args):
         super(MultiViewGNN, self).__init__()
         self.num_features = args.num_features
         self.nhid = args.nhid
         self.dropout_ratio = args.dropout_ratio
-        self.attention_mechanism = SelfAttention(self.nhid)
+        # self.attention = torch.nn.Parameter(torch.ones(3, 1, requires_grad=True))  # 增加一个注意力参数 可以在训练中被优化
+        # torch.nn.init.xavier_uniform_(self.attention.data)  # 使用xavier初始化
+        self.attention_layer = AttentionLayer(num_views=3)
+
         self.conv1_v1 = GCNConv(self.num_features, self.nhid)
         self.conv2_v1 = GCNConv(self.nhid, 1)
 
@@ -19,6 +26,8 @@ class MultiViewGNN(torch.nn.Module):
 
         self.conv1_v3 = GCNConv(self.num_features, self.nhid)
         self.conv2_v3 = GCNConv(self.nhid, 1)
+
+
 
     def forward(self, x, edge_index_v1, edge_index_v2, edge_index_v3, edge_weight_v1, edge_weight_v2, edge_weight_v3):
         # 视图1
@@ -43,15 +52,50 @@ class MultiViewGNN(torch.nn.Module):
         x_v3 = self.conv2_v3(x_v3, edge_index_v3)
 
         # 合并多视图 - 加和
-        x_multiview = x_v1 + x_v2 + x_v3
-        # 合并多视图 - 拼接
-        # x_multiview = torch.cat((x_v1, x_v2, x_v3), dim=1)  # 注意dim=1表示沿特征的维度拼接
+        # x_multiview = x_v1 + x_v2 + x_v3
         # 合并多视图 - 自注意力
         # x_multiview = self.attention_mechanism(x_v1, x_v2, x_v3)
+        # x_multiview = F.relu(self.lin1(x_multiview))
+        # x = torch.flatten(x_multiview)
+        # 在每个视图的特征上分别应用空间和通道注意力
+        # x_v1 = self.channel_attention(self.spatial_attention(features_v1))
+        # x_v2 = self.channel_attention(self.spatial_attention(features_v2))
+        # x_v3 = self.channel_attention(self.spatial_attention(features_v3))
+        # 融合特征
+        # x_multiview = x_v1 + x_v2 + x_v3
+
+        # 可以选择使用一个线性层进一步转换融合后的特征
+        # x_multiview = F.relu(self.lin1(x_multiview))
+        # 注意力权重
+        # attention_weights = F.softmax(self.attention, dim=0)  # 使用softmax得到归一化的注意力权重
+
+        # 融合特征，这里使用了注意力机制
+        # x_multiview = attention_weights[0] * x_v1 + attention_weights[1] * x_v2 + attention_weights[2] * x_v3
+        # Then in your MultiViewGNN, you would initialize the attention layer:
+
+        # And in the forward method, you would use the attention layer:
+        x_multiview = self.attention_layer(x_v1, x_v2, x_v3)
+        # 将融合后的特征展平
         x = torch.flatten(x_multiview)
 
         features = features_v1 + features_v2 + features_v3
+
         return x, features
+
+
+class AttentionLayer(torch.nn.Module):
+    def __init__(self, num_views=3):
+        super(AttentionLayer, self).__init__()
+        self.attention_weights = torch.nn.Parameter(torch.ones(num_views, 1, requires_grad=True))
+        torch.nn.init.xavier_uniform_(self.attention_weights.data)
+
+    def forward(self, *views):
+        # Calculate attention scores
+        attention_scores = F.softmax(self.attention_weights, dim=0)
+        # Apply attention scores to each view
+        combined_view = attention_scores[0] * views[0] + attention_scores[1] * views[2] + attention_scores[2] * views[2]
+        # Sum across views to get a single representation
+        return combined_view
 
 
 class SelfAttention(torch.nn.Module):
@@ -73,3 +117,40 @@ class SelfAttention(torch.nn.Module):
         # 应用得分到value
         weighted_values = torch.matmul(attention_scores, v3)
         return weighted_values
+
+
+class SpatialAttention(torch.nn.Module):
+    def __init__(self, in_channels):
+        super(SpatialAttention, self).__init__()
+        self.query = torch.nn.Linear(in_channels, in_channels)
+        self.key = torch.nn.Linear(in_channels, in_channels)
+        self.value = torch.nn.Linear(in_channels, in_channels)
+        self.softmax = torch.nn.Softmax(dim=-1)
+
+    def forward(self, x):
+        q = self.query(x)
+        k = self.key(x)
+        v = self.value(x)
+        attention_scores = torch.matmul(q, k.transpose(-2, -1))
+        attention_scores = self.softmax(attention_scores)
+        weighted_values = torch.matmul(attention_scores, v)
+        return weighted_values
+
+
+class ChannelAttention(torch.nn.Module):
+    def __init__(self, in_channels):
+        super(ChannelAttention, self).__init__()
+        self.fc1 = torch.nn.Linear(in_channels, in_channels // 8)
+        self.fc2 = torch.nn.Linear(in_channels // 8, in_channels)
+        self.softmax = torch.nn.Softmax(dim=-1)
+
+    def forward(self, x):
+        maxpooled = torch.max(x, dim=-2, keepdim=True)[0]
+        avgpooled = torch.mean(x, dim=-2, keepdim=True)
+        mlp_max = F.relu(self.fc1(maxpooled.squeeze(-2)))
+        mlp_avg = F.relu(self.fc1(avgpooled.squeeze(-2)))
+        mlp = self.fc2(mlp_max + mlp_avg)
+        scale = self.softmax(mlp).unsqueeze(-2)
+        weighted_values = x * scale
+        return weighted_values
+

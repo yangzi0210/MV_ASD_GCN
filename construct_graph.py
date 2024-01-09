@@ -134,23 +134,6 @@ def population_graph(args):
     logs = pd.read_csv(os.path.join(args.data_dir, 'phenotypic', 'log.csv'))
     # text_info = 871 * 2
     text_info = logs[cluster_att].values
-    # HANDEDNESS_CATEGORY HANDEDNESS_SCORES 不全 想一想处理
-    handedness_category = logs['HANDEDNESS_CATEGORY'].values
-    handedness_scores = logs['HANDEDNESS_SCORES'].values
-
-    # 这段代码是Python中使用机器学习库scikit-learn的一部分，用于对文本信息text_info进行独热编码（One-Hot Encoding）
-    # 独热编码是一种将分类变量转换为机器学习模型可以理解的形式的技术。在这个过程中，每个唯一的类别值都会被转换为一个二进制向量，其中只有一个元素是1，其余都是0。
-    # 下面是代码的详细解释：
-    # enc = OneHotEncoder()
-    # 这行代码创建了一个OneHotEncoder对象enc。OneHotEncoder是scikit-learn库中用于进行独热编码的一个类。
-    # enc.fit(text_info)
-    # 接下来，使用fit方法来“训练”独热编码器。这并不是训练一个预测模型的意义上的训练，而是指让编码器学习text_info中的所有类别。
-    # 这样，编码器就能知道有多少个不同的类别，以及每个类别应该如何编码成独热向量。
-    # text_feature = enc.transform(text_info).toarray()
-    # 然后使用transform方法将text_info数据转换为独热编码格式。
-    # transform方法会将每个类别值转换为一个独特的二进制向量。
-    # toarray()方法是因为transform方法返回的是一个稀疏矩阵（为了节省内存，因为独热编码会产生很多0）。toarray()方法将这个稀疏矩阵转换为一个常规的NumPy数组，方便后续的处理。
-    # 在这段代码中，text_info可能是一个包含类别数据的列表、数组或者pandas的DataFrame。最终，text_feature将包含text_info的独热编码表示，可以直接用于机器学习模型的训练和预测。
 
     enc = OneHotEncoder()
     enc.fit(text_info)
@@ -169,12 +152,12 @@ def population_graph(args):
     # 871 * 871
     sim_matrix = cosine_similarity(cluster_features)
 
-    ages_features = ages.reshape(871, 1)
-    # 站点 性别
-    sim_site_sex_matrix = cosine_similarity(text_feature)
-
-    # 年龄的欧式距离作为相似度矩阵
-    sim_ages_matrix = calculate_similarity_matrix_euclidean(ages_features)
+    # ages_features = ages.reshape(871, 1)
+    # # 站点 性别
+    # sim_site_sex_matrix = cosine_similarity(text_feature)
+    #
+    # # 年龄的欧式距离作为相似度矩阵
+    # sim_ages_matrix = calculate_similarity_matrix_euclidean(ages_features)
 
     # 原方法
     for i in range(871):
@@ -192,46 +175,11 @@ def population_graph(args):
     pd.DataFrame(adj).to_csv(os.path.join(args.data_dir, 'population graph', 'ABIDE.adj'), index=False, header=False)
     pd.DataFrame(att).to_csv(os.path.join(args.data_dir, 'population graph', 'ABIDE.attr'), index=False, header=False)
 
-    # 建立年龄 性别两个视图
-    # 年龄
-    adj_age = []
-    att_age = []
-    for i in range(871):
-        for j in range(871):
-            if sim_ages_matrix[i, j] > 0.5 and i > j:
-                adj_age.append([i, j])
-                att_age.append(sim_ages_matrix[i, j])
 
-    adj_age = np.array(adj_age).T
-    att_age = np.array([att_age]).T
-
-    if not os.path.exists(os.path.join(args.data_dir, 'Multi_view_graph')):
-        os.makedirs(os.path.join(args.data_dir, 'Multi_view_graph'))
-
-    pd.DataFrame(adj_age).to_csv(os.path.join(args.data_dir, 'Multi_view_graph', 'ABIDE_age.adj'), index=False,
-                                 header=False)
-    pd.DataFrame(att_age).to_csv(os.path.join(args.data_dir, 'Multi_view_graph', 'ABIDE_age.attr'), index=False,
-                                 header=False)
-    # 性别
-    adj_sex = []
-    att_sex = []
-    for i in range(871):
-        for j in range(871):
-            if sim_site_sex_matrix[i, j] > 0.5 and i > j:
-                adj_sex.append([i, j])
-                att_sex.append(sim_site_sex_matrix[i, j])
-
-    adj_sex = np.array(adj_sex).T
-    att_sex = np.array([att_sex]).T
-
-    pd.DataFrame(adj_sex).to_csv(os.path.join(args.data_dir, 'Multi_view_graph', 'ABIDE_sex.adj'), index=False,
-                                 header=False)
-    pd.DataFrame(att_sex).to_csv(os.path.join(args.data_dir, 'Multi_view_graph', 'ABIDE_sex.attr'), index=False,
-                                 header=False)
 
 def multiview_graph(args):
     """
-    Build the population graph. The nodes are connected if their cosine similarity is above 0.5
+    Build the multiview population graph. The nodes are connected if their cosine similarity is above 0.5
     in terms of xhenotypic information: gender, site, age.
     :param args: args from main.py
     :return: adj, att: adjacency matrix and edge weights

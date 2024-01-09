@@ -2,35 +2,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import Transformer
-from torch_geometric.nn import global_mean_pool, global_max_pool,global_add_pool,TopKPooling,SAGPooling,EdgePooling,ASAPooling,PANPooling,MemPooling
+from torch_geometric.nn import global_mean_pool, global_max_pool, global_add_pool
 from layers import HGPSLPool
 from torch_geometric.nn import GCNConv, APPNP, ClusterGCNConv, ChebConv, GraphSAGE
 
 
-# -------------  TODO:  正确合理修改 MLP 结构 ----------------------------------
-# 如果你的输入特征是一维的378长度的向量，那么除了多层感知机（MLP）之外，还有多种不同的方法可以用来提取特征。以下是一些常见的方法：
-#
-# 卷积神经网络（CNN）:
-# 即使CNN通常用于处理图像数据，你也可以将一维向量重新塑形成一维序列或虚构的二维数据（比如一个宽度为378，高度为1的图像）
-# 然后使用一维或二维卷积来提取局部特征。
-#
-# 递归神经网络（RNN）:
-# 对于序列数据，RNN及其变体（如LSTM或GRU）可以有效地处理输入特征。你可以将378维向量视为序列，并通过RNN来提取时间或顺序相关的特征。
-#
-# 自编码器（Autoencoders）:
-# 自编码器可以通过无监督学习来学习输入数据的有效表示。一个典型的自编码器包括一个编码器（将输入压缩成一个低维表示）和一个解码器（从低维表示重构输入）。
-#
-# 变分自编码器（Variational Autoencoders，VAEs）:
-# VAE是自编码器的一种，它不仅学习数据的压缩表示，还学习数据的概率分布。这可以用于生成新的数据样本，或者作为特征提取器。
-#
-# 变换器（Transformers）:
-# 虽然变换器模型通常用于处理文本数据，但它们的自注意力机制可以应用于任何类型的序列数据。你可以将378维向量视为序列，并使用变换器提取全局依赖关系。
-#
-# 残差网络(ResNet)
-
-
 # Model of hierarchical graph pooling
-class GPModel(torch.nn.Module):
+class GPModel1(torch.nn.Module):
     def __init__(self, args):
         super(GPModel, self).__init__()
         # parameters of hierarchical graph pooling
@@ -74,6 +52,46 @@ class GPModel(torch.nn.Module):
         x = F.relu(x1) + F.relu(x2) + F.relu(x3)
 
         # return the selected substructures
+        return x
+
+
+class GPModel(torch.nn.Module):
+    def __init__(self, args):
+        super(GPModel, self).__init__()
+        self.args = args
+        self.num_features = args.num_features
+        self.pooling_ratio = args.pooling_ratio
+        self.sample = True
+        self.sparse = True
+        self.sl = False
+        self.lamb = 1.0
+        self.nhid = args.nhid  # nhid 256 num_features 189
+
+        self.pool1 = HGPSLPool(self.num_features, self.pooling_ratio, self.sample, self.sparse, self.sl, self.lamb)
+        # 修改 GCN 层输出特征维度
+        self.conv1 = GCNConv(self.num_features, self.nhid)  # 假设 num_features 是输入特征的维度
+
+        self.conv2 = ChebConv(self.nhid, self.num_features, 3)
+
+    def forward(self, data):
+        x, edge_index, batch = data.x, data.edge_index, data.batch
+        edge_attr = None
+        # x 14208 * 189
+        # 应用第一个 pooling 层
+        x, edge_index, edge_attr, batch = self.pool1(x, edge_index, edge_attr, batch)  # 768 * 189
+        # 768 * 189
+        # 应用 GCN 层
+        x = self.conv1(x, edge_index)  # 768 * 378 # 618 * 378
+
+        # 应用非线性激活函数
+        x = F.relu(x)
+
+        x = self.conv2(x, edge_index)  # 768 * 378
+
+        x = torch.cat([global_mean_pool(x, batch), global_max_pool(x, batch)], dim=1)
+        # x = global_mean_pool(x, batch)
+        # 应用线性层
+        x = F.relu(x)
         return x
 
 
@@ -429,7 +447,7 @@ class GCN(torch.nn.Module):
     def __init__(self, args):
         super(GCN, self).__init__()
         self.num_features = args.num_features  # 128
-        self.nhid = args.nhid # 64
+        self.nhid = args.nhid  # 64
         self.dropout_ratio = args.dropout_ratio
         # define the gcn layers. As stated in the paper,
         # herein, we have employed GCNConv and ClusterGCN
