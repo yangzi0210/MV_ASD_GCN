@@ -87,9 +87,9 @@ class NodeInformationScore(MessagePassing):
         return aggr_out
 
 
-class HGPSLPool(torch.nn.Module):
+class NSEEPool(torch.nn.Module):
     def __init__(self, in_channels, ratio=0.8, sample=False, sparse=False, sl=True, lamb=1.0):
-        super(HGPSLPool, self).__init__()
+        super(NSEEPool, self).__init__()
         self.in_channels = in_channels
         self.ratio = ratio
         self.sample = sample
