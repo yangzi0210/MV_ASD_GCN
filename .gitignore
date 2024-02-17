@@ -3,3 +3,4 @@
 data/
 checkpoints/
 results/
+.DS_Store

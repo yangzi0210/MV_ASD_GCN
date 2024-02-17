@@ -2,6 +2,8 @@
 10-fold cross-validation of MLP and GCN
 """
 import os
+from datetime import datetime
+
 import torch
 import pandas as pd
 import numpy as np
@@ -231,10 +233,9 @@ def kfold_gcn(edge_index, edge_attr, num_samples, args):
     result_path = args.result_dir
     if not os.path.exists(result_path):
         os.makedirs(result_path)
-    import datetime
 
     # 获取当前日期
-    now_time = datetime.datetime.now()
+    now_time = datetime.now()
     formatted_time = now_time.strftime("%Y_%m_%d_%H_%M_%S")
     # ------------------------------------------ feat: 保存时增加当前具体时间 ------------------------------------------
     result_df.to_csv(os.path.join(result_path,

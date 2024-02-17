@@ -15,18 +15,11 @@ from datetime import datetime
 def kfold_multiview_gcn(edge_age_index, edge_age_attr, edge_sex_index, edge_sex_attr, edge_site_index, edge_site_attr,
                         num_samples, args):
     """
-    Training phase of multiview GCN. Some parameters of args are locally set here.
+    Training phase of GCN. Some parameters of args are locally set here.
     No validation is implemented in this section.
     :param num_samples:
     :param args:
     :return:
-    Args:
-        edge_site_attr: site graph
-        edge_site_index:
-        edge_sex_attr: sex graph
-        edge_sex_index:
-        edge_age_attr: age graph
-        edge_age_index:
     """
     # ------- feat：修改模型 添加其他指标 F1-score Accuracy Precision Recall/Sensitivity 在其他指标上效果更好 ---------
     # locally set parameters
@@ -108,12 +101,12 @@ def kfold_multiview_gcn(edge_age_index, edge_age_attr, edge_sex_index, edge_sex_
         data_age.train_mask = torch.tensor(train_mask, dtype=torch.bool)
         data_age.test_mask = torch.tensor(test_mask, dtype=torch.bool)
         data_age.val_mask = torch.tensor(val_mask, dtype=torch.bool)
-        # data_sex.train_mask = torch.tensor(train_mask, dtype=torch.bool)
-        # data_sex.test_mask = torch.tensor(test_mask, dtype=torch.bool)
-        # data_sex.val_mask = torch.tensor(val_mask, dtype=torch.bool)
-        # data_site.train_mask = torch.tensor(train_mask, dtype=torch.bool)
-        # data_site.test_mask = torch.tensor(test_mask, dtype=torch.bool)
-        # data_site.val_mask = torch.tensor(val_mask, dtype=torch.bool)
+        data_sex.train_mask = torch.tensor(train_mask, dtype=torch.bool)
+        data_sex.test_mask = torch.tensor(test_mask, dtype=torch.bool)
+        data_sex.val_mask = torch.tensor(val_mask, dtype=torch.bool)
+        data_site.train_mask = torch.tensor(train_mask, dtype=torch.bool)
+        data_site.test_mask = torch.tensor(test_mask, dtype=torch.bool)
+        data_site.val_mask = torch.tensor(val_mask, dtype=torch.bool)
 
         # assure the masks has no overlaps!
         # Necessary in experiments
@@ -163,7 +156,7 @@ def kfold_multiview_gcn(edge_age_index, edge_age_attr, edge_sex_index, edge_sex_
     if not os.path.exists(result_path):
         os.makedirs(result_path)
     # 获取当前日期
-    now_time = datetime.datetime.now()
+    now_time = datetime.now()
     formatted_time = now_time.strftime("%Y_%m_%d_%H_%M_%S")
     # ------------------------------------------ feat: 保存时增加当前具体时间 ------------------------------------------
     result_df.to_csv(os.path.join(result_path,
@@ -194,7 +187,7 @@ def train_multiview_gcn(dataloader1, dataloader2, dataloader3, model, optimizer,
     :param dataloader1: dataloader1 of training set
     :param dataloader2: dataloader2 of training set
     :param dataloader3: dataloader3 of training set
-    :param model: an instance of multiview GCN
+    :param model: an instance of GCN
     :param optimizer: Adam, by default
     :param args: args from main.py
     :return: filename of the best model
@@ -267,13 +260,12 @@ def train_multiview_gcn(dataloader1, dataloader2, dataloader3, model, optimizer,
 
 def test_multiview_gcn(dataloader1, dataloader2, dataloader3, model, args, test=True):
     """
-    Test the multiview GCN performance on loaders.
-    We have not used validation set in GCN.
+    Test the multiview_GCN performance on loaders. We have not use validation set in GCN.
     So, this is used to print the performance on test set
     :param dataloader1: an instance of torch_geometric.data.Dataloader
     :param dataloader2: an instance of torch_geometric.data.Dataloader
     :param dataloader3: an instance of torch_geometric.data.Dataloader
-    :param model: an instance of multiview GCN
+    :param model: an instance of GCN
     :param args: args from main.py
     :return: accuracy, loss, predictions on test set
     """

@@ -1,8 +1,8 @@
 import argparse
+from datetime import datetime
 import torch
 import os
 import pandas as pd
-from datetime import datetime
 from construct_graph import population_graph
 from kfold_eval import kfold_mlp, kfold_gcn
 from training import graph_pooling, extract
@@ -45,11 +45,11 @@ if __name__ == '__main__':
     '''
     downsample = pd.read_csv(downsample_file, header=None, sep='\t').values
 
-    # kfold_mlp(downsample, args)
+    kfold_mlp(downsample, args)
 
     # use the best MLP model to extract further learned features
     # from pooling results
-    # extract(downsample, args)
+    extract(downsample, args)
 
     # check if population graph is constructed
     adj_path = os.path.join(args.data_dir, 'population graph', 'ABIDE.adj')

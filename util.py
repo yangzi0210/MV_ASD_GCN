@@ -1,5 +1,3 @@
-import os
-import pandas as pd
 import torch
 from sklearn.metrics import euclidean_distances
 from torch import Tensor
@@ -25,35 +23,6 @@ def calculate_similarity_matrix_euclidean(vectors):
     similarity_matrix = 1 / (1 + distances)
 
     return similarity_matrix
-
-
-def read_dataset():
-    # 读取图结构数据集
-    root_path = './data/multiview_graph'
-    adj_age_path = os.path.join(root_path, 'ABIDE_age.adj')
-    attr_age_path = os.path.join(root_path, 'ABIDE_age.attr')
-    adj_sex_path = os.path.join(root_path, 'ABIDE_sex.adj')
-    attr_sex_path = os.path.join(root_path, 'ABIDE_sex.attr')
-    adj_site_path = os.path.join(root_path, 'ABIDE_site.adj')
-    attr_site_path = os.path.join(root_path, 'ABIDE_site.attr')
-
-    edge_age_index = pd.read_csv(adj_age_path, header=None).values
-    edge_age_attr = pd.read_csv(attr_age_path, header=None).values.reshape(-1)
-    edge_age_index = torch.tensor(edge_age_index, dtype=torch.long)
-    edge_age_attr = torch.tensor(edge_age_attr, dtype=torch.float)
-
-    edge_sex_index = pd.read_csv(adj_sex_path, header=None).values
-    edge_sex_attr = pd.read_csv(attr_sex_path, header=None).values.reshape(-1)
-    edge_sex_index = torch.tensor(edge_sex_index, dtype=torch.long)
-    edge_sex_attr = torch.tensor(edge_sex_attr, dtype=torch.float)
-
-    edge_site_index = pd.read_csv(adj_site_path, header=None).values
-    edge_site_attr = pd.read_csv(attr_site_path, header=None).values.reshape(-1)
-    edge_site_index = torch.tensor(edge_site_index, dtype=torch.long)
-    edge_site_attr = torch.tensor(edge_site_attr, dtype=torch.float)
-
-    return edge_age_index, edge_age_attr, edge_sex_index, edge_sex_attr, edge_site_index, edge_site_attr
-
 
 def str2float(arr):
     for i in range(len(arr)):

@@ -7,15 +7,16 @@ from torch_geometric.nn import GCNConv
 #  每个单视图添加注意力累加 / 多视图融合的时候添加注意力
 #  https://blog.51cto.com/u_16099224/7193830
 #  通道注意力 空间注意力 .....
+
 class MultiViewGNN(torch.nn.Module):
     def __init__(self, args):
         super(MultiViewGNN, self).__init__()
         self.num_features = args.num_features
         self.nhid = args.nhid
         self.dropout_ratio = args.dropout_ratio
-        # 添加空间和通道注意力层
-        self.spatial_attention = SpatialAttention(self.nhid)
-        self.channel_attention = ChannelAttention(self.nhid)
+        # self.attention = torch.nn.Parameter(torch.ones(3, 1, requires_grad=True))  # 增加一个注意力参数 可以在训练中被优化
+        # torch.nn.init.xavier_uniform_(self.attention.data)  # 使用xavier初始化
+        self.attention_layer = AttentionLayer(num_views=3)
 
         self.conv1_v1 = GCNConv(self.num_features, self.nhid)
         self.conv2_v1 = GCNConv(self.nhid, 1)
@@ -25,8 +26,6 @@ class MultiViewGNN(torch.nn.Module):
 
         self.conv1_v3 = GCNConv(self.num_features, self.nhid)
         self.conv2_v3 = GCNConv(self.nhid, 1)
-
-        self.lin1 = torch.nn.Linear(self.nhid, 1)
 
     def forward(self, x, edge_index_v1, edge_index_v2, edge_index_v3, edge_weight_v1, edge_weight_v2, edge_weight_v3):
         # 视图1
@@ -52,27 +51,49 @@ class MultiViewGNN(torch.nn.Module):
 
         # 合并多视图 - 加和
         # x_multiview = x_v1 + x_v2 + x_v3
-        # 合并多视图 - 拼接
-        # x_multiview = torch.cat((x_v1, x_v2, x_v3), dim=1)  # 注意dim=1表示沿特征的维度拼接
         # 合并多视图 - 自注意力
-        # x_multiview = self.attention_mechanism(features_v1, features_v2, features_v3)
+        # x_multiview = self.attention_mechanism(x_v1, x_v2, x_v3)
         # x_multiview = F.relu(self.lin1(x_multiview))
         # x = torch.flatten(x_multiview)
         # 在每个视图的特征上分别应用空间和通道注意力
-        x_v1 = self.channel_attention(self.spatial_attention(features_v1))
-        x_v2 = self.channel_attention(self.spatial_attention(features_v2))
-        x_v3 = self.channel_attention(self.spatial_attention(features_v3))
+        # x_v1 = self.channel_attention(self.spatial_attention(features_v1))
+        # x_v2 = self.channel_attention(self.spatial_attention(features_v2))
+        # x_v3 = self.channel_attention(self.spatial_attention(features_v3))
         # 融合特征
-        x_multiview = x_v1 + x_v2 + x_v3
+        # x_multiview = x_v1 + x_v2 + x_v3
 
         # 可以选择使用一个线性层进一步转换融合后的特征
-        x_multiview = F.relu(self.lin1(x_multiview))
+        # x_multiview = F.relu(self.lin1(x_multiview))
+        # 注意力权重
+        # attention_weights = F.softmax(self.attention, dim=0)  # 使用softmax得到归一化的注意力权重
 
+        # 融合特征，这里使用了注意力机制
+        # x_multiview = attention_weights[0] * x_v1 + attention_weights[1] * x_v2 + attention_weights[2] * x_v3
+        # Then in your MultiViewGNN, you would initialize the attention layer:
+
+        # And in the forward method, you would use the attention layer:
+        x_multiview = self.attention_layer(x_v1, x_v2, x_v3)
         # 将融合后的特征展平
         x = torch.flatten(x_multiview)
+
         features = features_v1 + features_v2 + features_v3
 
         return x, features
+
+
+class AttentionLayer(torch.nn.Module):
+    def __init__(self, num_views=3):
+        super(AttentionLayer, self).__init__()
+        self.attention_weights = torch.nn.Parameter(torch.ones(num_views, 1, requires_grad=True))
+        torch.nn.init.xavier_uniform_(self.attention_weights.data)
+
+    def forward(self, *views):
+        # Calculate attention scores
+        attention_scores = F.softmax(self.attention_weights, dim=0)
+        # Apply attention scores to each view
+        combined_view = attention_scores[0] * views[0] + attention_scores[1] * views[2] + attention_scores[2] * views[2]
+        # Sum across views to get a single representation
+        return combined_view
 
 
 class SelfAttention(torch.nn.Module):
