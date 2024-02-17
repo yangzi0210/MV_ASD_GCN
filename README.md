@@ -1,7 +1,10 @@
 # ASD_DS_GAD
- 基于多视图异常检测等机器学习技术以及 ABIDE 数据集进行 ASD 患者的诊断
+ 基于多视图、异常检测、图卷积网络等机器学习技术以及 ABIDE 数据集进行 ASD 患者的诊断
 
 ## Requirements
+
+torch_geometric 等库直接安装会有问题 参考网上教程
+
 ```
 
 torch >= 1.8.1+cu102
@@ -18,6 +21,14 @@ sklearn
 
 nilearn
 
+```
+## 使用
+
+```
+# 多视图模型
+$ python multiview_main.py
+# 单视图模型
+$ python main.py
 ```
 
 ## 参考
