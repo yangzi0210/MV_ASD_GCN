@@ -121,11 +121,10 @@ def brain_graph(logs, atlas, path, data_folder):
 def population_graph(args):
     """
     Build the population graph. The nodes are connected if their cosine similarity is above 0.5
-    in terms of xhenotypic information: gender, site, age.
+    in terms of phenotypic information: gender, site, age.
     :param args: args from main.py
     :return: adj, att: adjacency matrix and edge weights
     """
-    # 多视图 sex site age handedness ...
 
     # considering phenotypic information: gender, age and site
 
@@ -152,12 +151,12 @@ def population_graph(args):
     # 871 * 871
     sim_matrix = cosine_similarity(cluster_features)
 
-    # ages_features = ages.reshape(871, 1)
-    # # 站点 性别
-    # sim_site_sex_matrix = cosine_similarity(text_feature)
-    #
-    # # 年龄的欧式距离作为相似度矩阵
-    # sim_ages_matrix = calculate_similarity_matrix_euclidean(ages_features)
+    ages_features = ages.reshape(871, 1)
+    # 站点 性别
+    sim_site_sex_matrix = cosine_similarity(text_feature)
+
+    # 年龄的欧式距离作为相似度矩阵
+    sim_ages_matrix = calculate_similarity_matrix_euclidean(ages_features)
 
     # 原方法
     for i in range(871):
@@ -175,11 +174,48 @@ def population_graph(args):
     pd.DataFrame(adj).to_csv(os.path.join(args.data_dir, 'population graph', 'ABIDE.adj'), index=False, header=False)
     pd.DataFrame(att).to_csv(os.path.join(args.data_dir, 'population graph', 'ABIDE.attr'), index=False, header=False)
 
+    # 建立年龄 性别两个视图
+    # 年龄
+    adj_age = []
+    att_age = []
+    for i in range(871):
+        for j in range(871):
+            if sim_ages_matrix[i, j] > 0.5 and i > j:
+                adj_age.append([i, j])
+                att_age.append(sim_ages_matrix[i, j])
+
+    adj_age = np.array(adj_age).T
+    att_age = np.array([att_age]).T
+
+    if not os.path.exists(os.path.join(args.data_dir, 'Multi_view_graph')):
+        os.makedirs(os.path.join(args.data_dir, 'Multi_view_graph'))
+
+    pd.DataFrame(adj_age).to_csv(os.path.join(args.data_dir, 'Multi_view_graph', 'ABIDE_age.adj'), index=False,
+                                 header=False)
+    pd.DataFrame(att_age).to_csv(os.path.join(args.data_dir, 'Multi_view_graph', 'ABIDE_age.attr'), index=False,
+                                 header=False)
+    # 性别
+    adj_sex = []
+    att_sex = []
+    for i in range(871):
+        for j in range(871):
+            if sim_site_sex_matrix[i, j] > 0.5 and i > j:
+                adj_sex.append([i, j])
+                att_sex.append(sim_site_sex_matrix[i, j])
+
+    adj_sex = np.array(adj_sex).T
+    att_sex = np.array([att_sex]).T
+
+    pd.DataFrame(adj_sex).to_csv(os.path.join(args.data_dir, 'Multi_view_graph', 'ABIDE_sex.adj'), index=False,
+                                 header=False)
+    pd.DataFrame(att_sex).to_csv(os.path.join(args.data_dir, 'Multi_view_graph', 'ABIDE_sex.attr'), index=False,
+                                 header=False)
 
 def multiview_graph(args):
     """
-    Build the multiview population graph. The nodes are connected if their cosine similarity is above 0.5
-    in terms of xhenotypic information: gender, site, age.
+    Build the multiview population graph.
+    The nodes are connected if their euclidean distances similarity >= 0.5
+    in terms of phenotypic information: gender, site, age.
     :param args: args from main.py
     :return: adj, att: adjacency matrix and edge weights
     """
@@ -278,3 +314,4 @@ def multiview_graph(args):
                                   header=False)
     pd.DataFrame(att_site).to_csv(os.path.join(args.data_dir, 'multiview_graph', 'ABIDE_site.attr'), index=False,
                                   header=False)
+

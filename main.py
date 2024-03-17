@@ -1,8 +1,8 @@
 import argparse
+from datetime import datetime
 import torch
 import os
 import pandas as pd
-from datetime import datetime
 from construct_graph import population_graph
 from kfold_eval import kfold_mlp, kfold_gcn
 from training import graph_pooling, extract
@@ -19,7 +19,7 @@ parser.add_argument('--nhid', type=int, default=256, help='hidden size of MLP')
 parser.add_argument('--pooling_ratio', type=float, default=0.05, help='pooling ratio')
 parser.add_argument('--dropout_ratio', type=float, default=0.01, help='dropout ratio')
 parser.add_argument('--data_dir', type=str, default='./data', help='root of all the datasets')
-parser.add_argument('--device', type=str, default='cuda:0', help='for macos')
+parser.add_argument('--device', type=str, default='cpu', help='for macos is cpu, others are cuda:0')
 parser.add_argument('--check_dir', type=str, default='./checkpoints', help='root of saved models')
 parser.add_argument('--result_dir', type=str, default='./results', help='root of classification results')
 parser.add_argument('--verbose', type=bool, default=True, help='print training details')
@@ -45,11 +45,11 @@ if __name__ == '__main__':
     '''
     downsample = pd.read_csv(downsample_file, header=None, sep='\t').values
 
-    # kfold_mlp(downsample, args)
+    kfold_mlp(downsample, args)
 
     # use the best MLP model to extract further learned features
     # from pooling results
-    # extract(downsample, args)
+    extract(downsample, args)
 
     # check if population graph is constructed
     adj_path = os.path.join(args.data_dir, 'population graph', 'ABIDE.adj')

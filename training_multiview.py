@@ -108,12 +108,12 @@ def kfold_multiview_gcn(edge_age_index, edge_age_attr, edge_sex_index, edge_sex_
         data_age.train_mask = torch.tensor(train_mask, dtype=torch.bool)
         data_age.test_mask = torch.tensor(test_mask, dtype=torch.bool)
         data_age.val_mask = torch.tensor(val_mask, dtype=torch.bool)
-        # data_sex.train_mask = torch.tensor(train_mask, dtype=torch.bool)
-        # data_sex.test_mask = torch.tensor(test_mask, dtype=torch.bool)
-        # data_sex.val_mask = torch.tensor(val_mask, dtype=torch.bool)
-        # data_site.train_mask = torch.tensor(train_mask, dtype=torch.bool)
-        # data_site.test_mask = torch.tensor(test_mask, dtype=torch.bool)
-        # data_site.val_mask = torch.tensor(val_mask, dtype=torch.bool)
+        data_sex.train_mask = torch.tensor(train_mask, dtype=torch.bool)
+        data_sex.test_mask = torch.tensor(test_mask, dtype=torch.bool)
+        data_sex.val_mask = torch.tensor(val_mask, dtype=torch.bool)
+        data_site.train_mask = torch.tensor(train_mask, dtype=torch.bool)
+        data_site.test_mask = torch.tensor(test_mask, dtype=torch.bool)
+        data_site.val_mask = torch.tensor(val_mask, dtype=torch.bool)
 
         # assure the masks has no overlaps!
         # Necessary in experiments
@@ -163,7 +163,7 @@ def kfold_multiview_gcn(edge_age_index, edge_age_attr, edge_sex_index, edge_sex_
     if not os.path.exists(result_path):
         os.makedirs(result_path)
     # 获取当前日期
-    now_time = datetime.datetime.now()
+    now_time = datetime.now()
     formatted_time = now_time.strftime("%Y_%m_%d_%H_%M_%S")
     # ------------------------------------------ feat: 保存时增加当前具体时间 ------------------------------------------
     result_df.to_csv(os.path.join(result_path,

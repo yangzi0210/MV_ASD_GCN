@@ -1,16 +1,56 @@
+import argparse
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import Transformer
 from torch_geometric.nn import global_mean_pool, global_max_pool, global_add_pool
-from layers import HGPSLPool
-from torch_geometric.nn import GCNConv, APPNP, ClusterGCNConv, ChebConv, GraphSAGE
+from layers import NSEEPool
+from torch_geometric.nn import GCNConv, APPNP, ClusterGCNConv, ChebConv, GraphSAGE, GATConv, GINConv
+
+
+class GPModel(torch.nn.Module):
+    def __init__(self, args):
+        super(GPModel, self).__init__()
+        self.args = args
+        self.num_features = args.num_features
+        self.num_classes = 1
+        self.pooling_ratio = args.pooling_ratio
+        self.sample = True
+        self.sparse = True
+        self.sl = False
+        self.lamb = 1.0
+        self.nhid = args.nhid
+        # nhid 256 num_features 189
+        self.pool1 = NSEEPool(self.num_features, self.pooling_ratio, self.sample, self.sparse, self.sl, self.lamb)
+        self.conv1 = GCNConv(self.num_features, self.nhid)
+        self.conv2 = ChebConv(self.nhid, self.num_features, 3)
+
+    def forward(self, data):
+        x, edge_index, batch = data.x, data.edge_index, data.batch
+        edge_attr = None
+        # x 14208 * 189
+        # 应用第一个 pooling 层
+        x, edge_index, edge_attr, batch = self.pool1(x, edge_index, edge_attr, batch)  # 768 * 189
+        # 768 * 189
+        # 应用 GCN 层
+        x = self.conv1(x, edge_index)  # 768 * 378 # 618 * 378
+
+        # 应用非线性激活函数
+        x = F.relu(x)
+
+        x = self.conv2(x, edge_index)  # 768 * 378
+
+        x = torch.cat([global_mean_pool(x, batch), global_max_pool(x, batch)], dim=1)
+        # x = global_mean_pool(x, batch)
+        # 应用线性层
+        x = F.relu(x)
+        return x
 
 
 # Model of hierarchical graph pooling
-class GPModel1(torch.nn.Module):
+class GPModelOld(torch.nn.Module):
     def __init__(self, args):
-        super(GPModel, self).__init__()
+        super(GPModelOld, self).__init__()
         # parameters of hierarchical graph pooling
         self.args = args
         self.num_features = args.num_features
@@ -21,9 +61,9 @@ class GPModel1(torch.nn.Module):
         self.lamb = 1.0
 
         # define the pooling layers
-        self.pool1 = HGPSLPool(self.num_features, self.pooling_ratio, self.sample, self.sparse, self.sl, self.lamb)
-        self.pool2 = HGPSLPool(self.num_features, self.pooling_ratio, self.sample, self.sparse, self.sl, self.lamb)
-        self.pool3 = HGPSLPool(self.num_features, self.pooling_ratio, self.sample, self.sparse, self.sl, self.lamb)
+        self.pool1 = NSEEPool(self.num_features, self.pooling_ratio, self.sample, self.sparse, self.sl, self.lamb)
+        self.pool2 = NSEEPool(self.num_features, self.pooling_ratio, self.sample, self.sparse, self.sl, self.lamb)
+        self.pool3 = NSEEPool(self.num_features, self.pooling_ratio, self.sample, self.sparse, self.sl, self.lamb)
 
     def forward(self, data):
         # x: 14208 * 189 = 128 * 111 * 189
@@ -52,46 +92,6 @@ class GPModel1(torch.nn.Module):
         x = F.relu(x1) + F.relu(x2) + F.relu(x3)
 
         # return the selected substructures
-        return x
-
-
-class GPModel(torch.nn.Module):
-    def __init__(self, args):
-        super(GPModel, self).__init__()
-        self.args = args
-        self.num_features = args.num_features
-        self.pooling_ratio = args.pooling_ratio
-        self.sample = True
-        self.sparse = True
-        self.sl = False
-        self.lamb = 1.0
-        self.nhid = args.nhid  # nhid 256 num_features 189
-
-        self.pool1 = HGPSLPool(self.num_features, self.pooling_ratio, self.sample, self.sparse, self.sl, self.lamb)
-        # 修改 GCN 层输出特征维度
-        self.conv1 = GCNConv(self.num_features, self.nhid)  # 假设 num_features 是输入特征的维度
-
-        self.conv2 = ChebConv(self.nhid, self.num_features, 3)
-
-    def forward(self, data):
-        x, edge_index, batch = data.x, data.edge_index, data.batch
-        edge_attr = None
-        # x 14208 * 189
-        # 应用第一个 pooling 层
-        x, edge_index, edge_attr, batch = self.pool1(x, edge_index, edge_attr, batch)  # 768 * 189
-        # 768 * 189
-        # 应用 GCN 层
-        x = self.conv1(x, edge_index)  # 768 * 378 # 618 * 378
-
-        # 应用非线性激活函数
-        x = F.relu(x)
-
-        x = self.conv2(x, edge_index)  # 768 * 378
-
-        x = torch.cat([global_mean_pool(x, batch), global_max_pool(x, batch)], dim=1)
-        # x = global_mean_pool(x, batch)
-        # 应用线性层
-        x = F.relu(x)
         return x
 
 
@@ -273,7 +273,6 @@ class ResNet(nn.Module):
         x = self.lin2(x)
         x = F.relu(x)
         x = F.dropout(x, p=self.dropout_ratio, training=self.training)
-        # print(x.shape)
         # further learned features
         features = x
         # for training phase
@@ -467,7 +466,7 @@ class GCN(torch.nn.Module):
 
 class ChebGCN(torch.nn.Module):
     def __init__(self, args):
-        super(GCN, self).__init__()
+        super(ChebGCN, self).__init__()
         self.num_features = args.num_features
         self.nhid = args.nhid
         self.dropout_ratio = args.dropout_ratio
@@ -495,7 +494,7 @@ class ChebGCN(torch.nn.Module):
 
 class GraphSAGEGCN(torch.nn.Module):
     def __init__(self, args):
-        super(GCN, self).__init__()
+        super(GraphSAGEGCN, self).__init__()
         self.num_features = args.num_features
         self.nhid = args.nhid
         self.dropout_ratio = args.dropout_ratio
@@ -519,3 +518,13 @@ class GraphSAGEGCN(torch.nn.Module):
 
         x = torch.flatten(x)
         return x, features
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--num_features', type=int, default=189, )
+    parser.add_argument('--pooling_ratio', type=float, default=0.05, )
+    parser.add_argument('--nhid', type=int, default=256, )
+    args = parser.parse_args()
+    model = GPModel(args)
+    print(model)
