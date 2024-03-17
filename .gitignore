@@ -1,0 +1,6 @@
+*.txt
+/test.py
+data/
+checkpoints/
+results/
+.DS_Store
