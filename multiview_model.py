@@ -15,7 +15,6 @@ class MultiViewGNN(torch.nn.Module):
         self.nhid = args.nhid
         self.dropout_ratio = args.dropout_ratio
         # self.attention = torch.nn.Parameter(torch.ones(3, 1, requires_grad=True))  # 增加一个注意力参数 可以在训练中被优化
-        # torch.nn.init.xavier_uniform_(self.attention.data)  # 使用xavier初始化
         self.attention_layer = AttentionLayer(num_views=3)
 
         self.conv1_v1 = GCNConv(self.num_features, self.nhid)
@@ -48,20 +47,6 @@ class MultiViewGNN(torch.nn.Module):
         features_v3 = x_v3
         x_v3 = F.dropout(x_v3, p=self.dropout_ratio, training=self.training)
         x_v3 = self.conv2_v3(x_v3, edge_index_v3)
-
-        # 合并多视图 - 加和
-        # x_multiview = x_v1 + x_v2 + x_v3
-
-        # 在每个视图的特征上分别应用空间和通道注意力
-        # x_v1 = self.channel_attention(self.spatial_attention(features_v1))
-        # x_v2 = self.channel_attention(self.spatial_attention(features_v2))
-        # x_v3 = self.channel_attention(self.spatial_attention(features_v3))
-        # 融合特征
-        # x_multiview = x_v1 + x_v2 + x_v3
-
-        # 融合特征，这里使用了注意力机制
-        # x_multiview = attention_weights[0] * x_v1 + attention_weights[1] * x_v2 + attention_weights[2] * x_v3
-        # Then in your MultiViewGNN, you would initialize the attention layer:
 
         # And in the forward method, you would use the attention layer:
         x_multiview = self.attention_layer(x_v1, x_v2, x_v3)
