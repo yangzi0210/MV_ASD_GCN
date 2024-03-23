@@ -303,16 +303,17 @@ def test_multiview_gcn(dataloader1, dataloader2, dataloader3, model, args, test=
             length = data1.test_mask.sum().item()
             correct += pred.eq(data1.y[data1.test_mask]).sum().item()
             loss_test += criterion(out[data1.test_mask], data1.y[data1.test_mask].float()).item()
-            # ---------------------- feat: 添加其他指标预测 ---------------------------------------
-            # TP(True Positive，真阳性)：样本的真实类别是正类，并且模型预测的结果也是正类。
-            # FP(False Positive，假阳性)：样本的真实类别是负类，但是模型将其预测成为正类。
-            # TN(True Negative，真阴性)：样本的真实类别是负类，并且模型将其预测成为负类。
-            # FN(False Negative，假阴性)：样本的真实类别是正类，但是模型将其预测成为负类。c
-            # ACC = TP + TN / TP + TN + FP + FN
-            # Precision: PRE = TP /TP + FP
-            # RECALL = TP / TP + FN
-            # Specificity: SC = TN / TN + FP
-            # F1 SCORE = 2 * PRE * RECALL / PRE + RECALL
+            """             
+            TP(True Positive，真阳性)：样本的真实类别是正类，并且模型预测的结果也是正类。
+            FP(False Positive，假阳性)：样本的真实类别是负类，但是模型将其预测成为正类。
+            TN(True Negative，真阴性)：样本的真实类别是负类，并且模型将其预测成为负类。
+            FN(False Negative，假阴性)：样本的真实类别是正类，但是模型将其预测成为负类。c
+            ACC = TP + TN / TP + TN + FP + FN
+            Precision: PRE = TP /TP + FP
+            RECALL = TP / TP + FN
+            Specificity: SC = TN / TN + FP
+            F1 SCORE = 2 * PRE * RECALL / PRE + RECALL 
+            """
             pre_list = pred.cpu().numpy().tolist()
             true_list = data1.y[data1.test_mask].cpu().numpy().tolist()
             for true_label, predicted_label in zip(true_list, pre_list):

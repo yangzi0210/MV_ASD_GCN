@@ -2,12 +2,7 @@ import torch
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv
 
-
-#  添加注意力机制后的多视图代码
-#  每个单视图添加注意力累加 / 多视图融合的时候添加注意力
-#  https://blog.51cto.com/u_16099224/7193830
-#  通道注意力 空间注意力 .....
-
+# 多视图种群图模型
 class MultiViewGNN(torch.nn.Module):
     def __init__(self, args):
         super(MultiViewGNN, self).__init__()
@@ -57,7 +52,7 @@ class MultiViewGNN(torch.nn.Module):
 
         return x, features
 
-
+# 多视图注意力层
 class AttentionLayer(torch.nn.Module):
     def __init__(self, num_views=3):
         super(AttentionLayer, self).__init__()

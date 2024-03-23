@@ -36,10 +36,8 @@ if __name__ == '__main__':
     # check if exists downsampled brain imaging data
     downsample_file = os.path.join(args.data_dir, 'ABIDE_downsample',
                                    'ABIDE_pool_{:.3f}_.txt'.format(args.pooling_ratio))
-    # if not os.path.exists(downsample_file):
-    #     print('Running graph pooling with pooling ratio = {:.3f}'.format(args.pooling_ratio))
+    # downsample & pooling
     graph_pooling(args)
-    # print('start')
 
     start_time = datetime.now()
 
@@ -49,17 +47,12 @@ if __name__ == '__main__':
     '''
     downsample = pd.read_csv(downsample_file, header=None, sep='\t').values
 
-    # kfold_mlp(downsample, args)
+    kfold_mlp(downsample, args)
 
-    # use the best MLP model to extract further learned features
-    # from pooling results
+    # use the best MLP model to extract further learned features from pooling results
     extract(downsample, args)
 
-    # check if population graph is constructed
-    adj_path = os.path.join(args.data_dir, 'population graph', 'ABIDE.adj')
-    attr_path = os.path.join(args.data_dir, 'population graph', 'ABIDE.attr')
-
-    # if not os.path.exists(adj_path) or not os.path.exists(attr_path):
+    # Building multiple views GCN
     multiview_graph(args)
 
     # Load multiview population graph
@@ -67,7 +60,9 @@ if __name__ == '__main__':
     # run multiview GCN
     kfold_multiview_gcn(edge_age_index, edge_age_attr, edge_sex_index, edge_sex_attr, edge_site_index, edge_site_attr,
                         downsample.shape[0], args)
+
     end_time = datetime.now()
     spend_time = end_time - start_time
+
     print('end')
     print(f'Spend Time: {spend_time}')

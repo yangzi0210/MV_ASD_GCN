@@ -302,6 +302,7 @@ def multiview_graph(args):
     if not os.path.exists(os.path.join(args.data_dir, 'multiview_graph')):
         os.makedirs(os.path.join(args.data_dir, 'multiview_graph'))
 
+    # 保存多视图图结构信息
     pd.DataFrame(adj_age).to_csv(os.path.join(args.data_dir, 'multiview_graph', 'ABIDE_age.adj'), index=False,
                                  header=False)
     pd.DataFrame(att_age).to_csv(os.path.join(args.data_dir, 'multiview_graph', 'ABIDE_age.attr'), index=False,

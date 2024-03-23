@@ -1,9 +1,14 @@
 # ASD_DS_GAD
- 基于多视图、异常检测、图卷积网络等机器学习技术以及 ABIDE 数据集进行 ASD 患者的诊断
+
+基于多视图、异常检测、图卷积网络等机器学习技术进行 ASD 患者的诊断分类模型
+
+数据集为 ABIDE I
+
+预处理方法为 CPAC
 
 ## Requirements
 
-torch_geometric 等库直接安装会有问题 参考网上教程
+torch_geometric 等库直接安装可能会有问题 参考网上教程
 
 ```
 
@@ -22,6 +27,7 @@ sklearn
 nilearn
 
 ```
+
 ## 使用
 
 ```
@@ -29,9 +35,12 @@ nilearn
 $ python multiview_main.py
 # 单视图模型
 $ python main.py
+# 可视化
+$ python visualize.py
 ```
 
 ## 参考
+
 ```
 @article{pan2021identifying,
   title={Identifying Autism Spectrum Disorder Based on Individual-Aware Down-Sampling and Multi-Modal Learning},

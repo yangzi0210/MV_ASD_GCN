@@ -23,7 +23,7 @@ parser.add_argument('--model_root', type=str, default='./checkpoints', help='Roo
 parser.add_argument('--data_root', type=str, default='./data', help='Root for the data')
 parser.add_argument('--seed', type=int, default=13, help='Random seed. To specify the test set for evaluation')
 parser.add_argument('--pooling_ratio', type=float, default=0.05, help='pooling ratio')
-parser.add_argument('--group', type=str, default='gender', help='Phenotypic attribute to group subjects on')
+parser.add_argument('--group', type=str, default='gender', help='gender & site & age')
 
 args = parser.parse_args()
 
@@ -111,22 +111,34 @@ def view2D(out, color, axis, size=70, maximum=11, legend_title='', title=''):
     if torch.is_tensor(out):
         out = out.detach().cpu().numpy()
     if torch.is_tensor(color):
-        # fix: 修复报错 label
-        color = color.detach().cpu().numpy()
-
-    z = TSNE(n_components=2).fit_transform(out)
+        color = label.detach().cpu().numpy()
+    markers = ['o', 's', '^', 'v', '<', '>']
 
     color_set = set(color)
+    z = TSNE(n_components=2).fit_transform(out)
+    color_set = set(color)
+    colors = plt.cm.get_cmap('tab20', maximum)
 
     for i, item in enumerate(color_set):
         selected = color == item
         if i > maximum - 1:
             break
-        axis.scatter(z[selected, 0], z[selected, 1], s=size, color=cm.Set3(i), label=item)
+            # 循环使用markers列表
+        marker = markers[i % len(markers)]
+        axis.scatter(z[selected, 0], z[selected, 1], s=size, color=colors(i), label=item, marker=marker)
 
-    axis.set_xlabel('Dimension 1')
-    axis.set_ylabel('Dimension 2')
-    axis.legend(title=legend_title)
+    axis.set_xlabel('Dimension 1', fontsize='medium')
+    axis.set_ylabel('Dimension 2', fontsize='medium')
+    # 设置网格
+    axis.grid(True, linestyle='--', alpha=0.7)
+
+    # 设置背景色
+    axis.set_facecolor('#f0f0f0')
+
+    # 调整坐标轴刻度标签大小
+    axis.tick_params(labelsize='small')
+    axis.legend(title=legend_title, loc='best', fontsize='small', title_fontsize='medium')
+
     axis.set_title(title)
 
 
